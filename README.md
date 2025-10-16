@@ -5,7 +5,7 @@ This repository contains scripts and experiments for the ITensorCPD project deve
 [ITensorCPD repository](https://github.com/kmp5VT/ITensorCPD.jl)
 
 ## Dataset
-The dataset is not included in this repository. To run the experiments you need to download the dataset and place it in the following folder:
+The dataset is not included in this repository. To run the experiments you need to download the dataset and place it in the correct folder:
 
 ## Well dataset
 This project uses the **Well dataset**. It contains a large-scale collection of machine learning datasets containing numerical simulations of a wide variety of spatiotemporal physical systems.
