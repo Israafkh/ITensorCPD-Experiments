@@ -12,7 +12,7 @@ press = file["t0_fields"]["concentration"];
 press_traj = press[:,:,:,1]
 
 nsteps = size(press_traj,3)
-A = ITensors.itensor(press_traj,Index(256),Index(256), Index(nsteps))
+A = ITensors.itensor(press_traj,Index.(size(press_traj)))
 println(size(A))
 error_SEQRCS = Vector{Float64}()
 error_leverage = Vector{Float64}()
@@ -31,13 +31,14 @@ for rk in [3,5,7,10,20,30,40,50,100,150,200,250,300]
     check = ITensorCPD.CPDiffCheck(1e-5, 50)
 
      int_opt_A =
-    ITensorCPD.als_optimize(A, cp_A; alg = ITensorCPD.SEQRCSPivProjected((1,1,1), (600, 600, 600), (1,2,3),(400,400,100)),check, verbose);
+    ITensorCPD.als_optimize(A, cp_A; 
+    alg = ITensorCPD.SEQRCSPivProjected((1,), (600,), (1,2,3,4),(400,400,100)),check, verbose);
     SEQRCS_error =   norm(A - ITensorCPD.reconstruct(int_opt_A)) / sqrt(sum(A.^2))
     println("result for active using SEQRCS: ",SEQRCS_error)
     push!(error_SEQRCS,SEQRCS_error)
     
     
-    alg = ITensorCPD.LevScoreSampled((600, 600, 600))
+    alg = ITensorCPD.LevScoreSampled((600,))
      int_opt_A = ITensorCPD.als_optimize(A, cp_A; alg, check, verbose);
     lev_error =   norm(A - ITensorCPD.reconstruct(int_opt_A)) / norm(A) 
     println("result for active using leverage method is",lev_error)
