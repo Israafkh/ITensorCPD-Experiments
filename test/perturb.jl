@@ -7,7 +7,8 @@ using ITensorCPD: compute_krp, matricize_tensor, solve_ls_problem, row_norm, pos
 
 # Fit = || T - \hat{T} || / || T ||
 # sqrt(T^2 - 2 * T \hat{T} + \hat{T}^2)
-function check_fit(target, factors, cprank, λ, fact)
+function check_fit(als, factors, cprank, λ, fact)
+    target = als.target
     inner_prod = (had_contract([target, dag.(factors)...], cprank) * dag(λ))[]
     partial_gram = [fact * dag(prime(fact; tags=tags(cprank))) for fact in factors];
     fact_square = ITensorCPD.norm_factors(partial_gram, λ)
@@ -31,7 +32,7 @@ function single_solve(alsRef, cpd, fact)
     factors[fact], λ = row_norm(solution, target_ind)
     post_solve(als.mttkrp_alg, als, factors, λ, cpd, cprank, fact)
 
-    fit = check_fit(als.target, factors, cprank, λ, fact)
+    fit = check_fit(als, factors, cprank, λ, fact)
     return ITensorCPD.CPD{ITensor}(factors, λ), als, fit
 end
 
