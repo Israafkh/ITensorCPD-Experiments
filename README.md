@@ -20,13 +20,5 @@ This project uses the **Well dataset**. It contains a large-scale collection of 
   year={2024}
 }
 ``` 
-To install, follow the instructions at:  
+To install and download the datasets, follow the instructions at:  
 [https://polymathic-ai.org/the_well/](https://polymathic-ai.org/the_well/)
-
-Then you can download the two dataset "active_matter" and "gray_scott_reaction_diffusion"
-
-```bash
-the-well-download --base-path path/to/repo/test/datasets --dataset active_matter --split train
-the-well-download --base-path path/to/repo/test/datasets --dataset gray_scott_reaction_diffusion --split train
-
-
