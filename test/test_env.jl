@@ -6,6 +6,15 @@ using Pkg
 
 using ITensorCPD
 using ITensors
+using HDF5
+using Plots
+using ITensorNetworks
+using Profile
+
+
+using Random
+using ITensorCPD: had_contract
+
 using ITensorCPD: had_contract
 function check_fit(als, factors, cprank, λ, fact)
     target = als.target
@@ -21,4 +30,4 @@ function check_fit(als, factors, cprank, λ, fact)
     return fit
 end
 
-include("./well.jl")
+#include("./well.jl")
