@@ -1,36 +1,16 @@
-using HDF5
-using Plots
-using ITensorNetworks
-using Profile
-
-
-using Random
-using ITensorCPD: had_contract
-function check_fit(als, factors, cprank, λ, fact)
-    target = als.target
-    ref_norm = sum(target.^2)
-    inner_prod = (had_contract([target, dag.(factors)...], cprank) * dag(λ))[]
-    partial_gram = [fact * dag(prime(fact; tags=tags(cprank))) for fact in factors];
-    fact_square = ITensorCPD.norm_factors(partial_gram, λ)
-    normResidual =
-        sqrt(abs(ref_norm + fact_square - 2 * abs(inner_prod)))
-    fit = normResidual / sqrt(ref_norm)
-    println("CPD rank\tMode\tCPD Accuracy")
-    println("$(dim(cprank))\t\t$(fact)\t$(fit)")
-    return fit
-end
+include("test_env.jl")
 
 ## IT would be good here to add a warning to add the correct data maybe
 
 path = "$(@__DIR__)/datasets/active_matter/data/train/"
 files = readdir(path)
-dat = Array{Float32}(undef, 256, 256, 81);
+dat = Array{Float32}(undef, 2,256, 256, 81);
  i = 1
 #for i in 1:45
     file = h5open(path*files[i])
     press = file["t2_fields"]["D"];
-    press_traj = press[1,1,:,:,:,1]
-    dat[:,:,:] = press_traj
+    press_traj = press[:,1,:,:,:,1]
+    dat[:,:,:,:] = press_traj
 #end
 
 nsteps = size(dat)[end]
@@ -42,7 +22,7 @@ verbose = true
 cp_A = ITensorCPD.random_CPD(A, 1, rng=RandomDevice())
 
 check = ITensorCPD.CPDiffCheck(1e-6, 50)
-alg = ITensorCPD.SEQRCSPivProjected((1,1,1,1), (400,400,400,400), (1,2,3,4), (10,10,10,10))
+alg = ITensorCPD.SEQRCSPivProjected((1,1,1,1,1), (400,400,400,400,400), (1,2,3,4,5), (2,10,10,10,10))
 alsQR = ITensorCPD.compute_als(A, cp_A; alg, check);
 
 alg = ITensorCPD.LevScoreSampled((400,))
