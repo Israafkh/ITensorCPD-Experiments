@@ -15,11 +15,12 @@ println(size(A))
 
 cp_A = ITensorCPD.random_CPD(A, 1,rng=RandomDevice())
 check = ITensorCPD.CPDiffCheck(1e-7, 50)
-alg = ITensorCPD.SEQRCSPivProjected((1,), (50,), (1,2,3,4),(10,10,10,10))
+alg = ITensorCPD.SEQRCSPivProjected((1,), (50,), (1,2,3,4),(40,40,40,40))
 alsQR = ITensorCPD.compute_als(A, cp_A; alg, check);
 
 alg = ITensorCPD.LevScoreSampled((50,))
 alsLev = ITensorCPD.compute_als(A, cp_A; alg, check);
+
 
 # [3,5,7,10,20,30,40,50,100,150,200,250]
 ranks = [1,5,10,40,100,200]
@@ -32,9 +33,11 @@ for rk in ranks
     r = Index(rk, "CP_rank")
     cp_A = ITensorCPD.random_CPD(A, r,rng=RandomDevice())
     verbose = false
-    #  opt_A = ITensorCPD.als_optimize(A, cp_A; alg = ITensorCPD.direct(), check, verbose)
-    # direct_error =  norm(A - ITensorCPD.reconstruct(opt_A)) / sqrt(sum(A.^2))
-    # push!(error_direct,direct_error)
+
+    alsNormal = ITensorCPD.compute_als(A, cp_A; alg=ITensorCPD.direct(), check);
+    opt_A = ITensorCPD.optimize(cp_A, alsNormal; verbose);
+    direct_error = check_fit(alsNormal, opt_A.factors, r, opt_A.λ, 1)
+    push!(error_direct,direct_error)
 
     # println("SEQRCS")
     # @btime 
