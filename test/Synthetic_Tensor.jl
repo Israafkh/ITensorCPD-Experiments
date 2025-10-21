@@ -80,24 +80,24 @@ for elt in [Float32,Float64]
         err_SEQRCS = Vector{Float64}()
         err_leverage = Vector{Float64}()
         err_direct = Vector{Float64}()
-        SEQRCS_error_vect = Vector{Float64}()
-        lev_error_vect = Vector{Float64}()
         cp_T = ITensorCPD.random_CPD(T,r,rng=RandomDevice())
         for s in samples
 
+            SEQRCS_error_vect = Vector{Float64}()
+            lev_error_vect = Vector{Float64}()
             for q = 1:10
-            alsQR = ITensorCPD.compute_als(T,cp_T; alg = ITensorCPD.SEQRCSPivProjected(1, s, (1,2,3),(50,50,50)),check = check_piv)
-            int_opt_T =
-            ITensorCPD.optimize(cp_T,alsQR;verbose)
-            push!(SEQRCS_error_vect,check_fit(alsQR, int_opt_T.factors, r, int_opt_T.λ, 1))
+                alsQR = ITensorCPD.compute_als(T,cp_T; alg = ITensorCPD.SEQRCSPivProjected(1, s, (1,2,3),(50,50,50)),check = check_piv)
+                int_opt_T =
+                ITensorCPD.optimize(cp_T,alsQR;verbose)
+                push!(SEQRCS_error_vect,check_fit(alsQR, int_opt_T.factors, r, int_opt_T.λ, 1))
             end
             SEQRCS_error = median(SEQRCS_error_vect) 
             push!(err_SEQRCS,SEQRCS_error)
 
             for q=1:10
-            alslev = ITensorCPD.compute_als(T,cp_T;alg = ITensorCPD.LevScoreSampled(s),check = check_piv)
-            int_opt_T = ITensorCPD.optimize(cp_T, alslev; verbose)
-            push!(lev_error_vect,check_fit(alslev, int_opt_T.factors, r, int_opt_T.λ, 1))
+                alslev = ITensorCPD.compute_als(T,cp_T;alg = ITensorCPD.LevScoreSampled(s),check = check_piv)
+                int_opt_T = ITensorCPD.optimize(cp_T, alslev; verbose)
+                push!(lev_error_vect,check_fit(alslev, int_opt_T.factors, r, int_opt_T.λ, 1))
             end
 
             Lev_error = median(lev_error_vect)
