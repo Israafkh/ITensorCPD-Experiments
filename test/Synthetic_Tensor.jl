@@ -1,5 +1,5 @@
 include("test_env.jl")
-using LinearAlgebra, Statistics
+using LinearAlgebra, Statistics, DataFrames, CategoricalArrays, StatsPlots
 ## Generating a random tensor with CPD rank greater than dimension
 
 for elt in [Float32,Float64]
@@ -21,28 +21,24 @@ for elt in [Float32,Float64]
         SEQRCS_error_vect = Vector{Float64}()
         lev_error_vect = Vector{Float64}()
         for s in samples
-            for q = 1:10
+            for q = 1:50
                 alg = ITensorCPD.SEQRCSPivProjected(1, s, (1,2,3),(5,5,5))
                 alsQR = ITensorCPD.compute_als(T,cp_T;alg, check =check_piv);
                 int_opt_T =
                 ITensorCPD.optimize(cp_T,alsQR;verbose);
                 push!(SEQRCS_error_vect,check_fit(alsQR, int_opt_T.factors, r, int_opt_T.λ, 1))
             end
-            # SEQRCS_error = median(SEQRCS_error_vect) 
-            # push!(err_SEQRCS,SEQRCS_error)
 
-            for q=1:10
+            for q=1:50
                 alslev = ITensorCPD.compute_als(T,cp_T;alg = ITensorCPD.LevScoreSampled(s),check = check_piv)
                 int_opt_T = ITensorCPD.optimize(cp_T, alslev; verbose)
                 push!(lev_error_vect,check_fit(alslev, int_opt_T.factors, r, int_opt_T.λ, 1))
             end
 
-            # Lev_error = median(lev_error_vect)
-            # push!(err_leverage,Lev_error)
         end
     
-        SEQRCS_error_mat = reshape(SEQRCS_error_vect, (10,length(samples)))
-        lev_error_mat = reshape(lev_error_vect, (10,length(samples)))
+        SEQRCS_error_mat = reshape(SEQRCS_error_vect, (50,length(samples)))
+        lev_error_mat = reshape(lev_error_vect, (50,length(samples)))
         
         err_SEQRCS = median.(eachcol(SEQRCS_error_mat))
         err_leverage = median.(eachcol(lev_error_mat))
@@ -59,6 +55,7 @@ for elt in [Float32,Float64]
         xlabel!("Number of Samples")
         ylabel!("Error in CPD Fit")
         title!("Synthetic Tensor Test:\n Rank $rk")
+
         n = nothing
         if elt == Float64
             n = "F64"
@@ -67,6 +64,27 @@ for elt in [Float32,Float64]
         end
         savefig("$(@__DIR__)/../plots/synthetic_tensor/rank_$(rk)_test_$(n).pdf")
         display(plt2)
+
+        #Violin plot of synthetic tensor
+        df = DataFrame(
+            sample = vcat(repeat(samples, inner=50), repeat(samples, inner=50)),
+            method = vcat(fill("SE-QRCS", 50*length(samples)),
+                        fill("Leverage", 50*length(samples))),
+            error  = vcat(SEQRCS_error_vect, lev_error_vect)
+        )
+
+        df.sample = CategoricalArray(string.(df.sample), ordered=true, levels=string.(samples))
+
+        df_SEQRCS = filter(row -> row.method == "SE-QRCS", df)
+        df_lev  = filter(row -> row.method == "Leverage", df)
+
+        p = @df df_SEQRCS violin(:sample, :error, side=:left, label="SE-QRCS", color=:blue, yscale=:log10)
+        @df df_lev  violin!(:sample, :error, side=:right, label="Leverage", color=:orange)
+        xlabel!("Sampling size")
+        ylabel!("Error distribution in CPD fit")
+        title!("Synthetic tensor test: \n Rank $rk")
+        legend=:topleft
+        display(p)
 
     end
 end
@@ -96,27 +114,23 @@ for elt in [Float32,Float64]
         SEQRCS_error_vect = Vector{Float64}()
         lev_error_vect = Vector{Float64}()
         for s in samples
-            for q = 1:10
+            for q = 1:50
                 alsQR = ITensorCPD.compute_als(T,cp_T; alg = ITensorCPD.SEQRCSPivProjected(1, s, (1,2,3),(90,90,90)),check = check_piv)
                 int_opt_T =
                 ITensorCPD.optimize(cp_T,alsQR;verbose)
                 push!(SEQRCS_error_vect,check_fit(alsQR, int_opt_T.factors, r, int_opt_T.λ, 1))
             end
-            # SEQRCS_error = median(SEQRCS_error_vect) 
-            # push!(err_SEQRCS,SEQRCS_error)
+            
 
-            for q=1:10
+            for q=1:50
                 alslev = ITensorCPD.compute_als(T,cp_T;alg = ITensorCPD.LevScoreSampled(s),check = check_piv)
                 int_opt_T = ITensorCPD.optimize(cp_T, alslev; verbose)
                 push!(lev_error_vect,check_fit(alslev, int_opt_T.factors, r, int_opt_T.λ, 1))
             end
-
-            # Lev_error = median(lev_error_vect)
-            # push!(err_leverage,Lev_error)
         end
 
-        SEQRCS_error_mat = reshape(SEQRCS_error_vect, (10,length(samples)))
-        lev_error_mat = reshape(lev_error_vect, (10,length(samples)))
+        SEQRCS_error_mat = reshape(SEQRCS_error_vect, (50,length(samples)))
+        lev_error_mat = reshape(lev_error_vect, (50,length(samples)))
         
         err_SEQRCS = median.(eachcol(SEQRCS_error_mat))
         err_leverage = median.(eachcol(lev_error_mat))
@@ -139,9 +153,31 @@ for elt in [Float32,Float64]
         else
             n = "F32"
         end
+
         savefig("$(@__DIR__)/../plots/synthetic_tensor/rank_$(rk)_modified_test_$(n).pdf")
 
         display(plt2)
+
+        ## Violin Plot of modified tensor
+        df = DataFrame(
+            sample = vcat(repeat(samples, inner=50), repeat(samples, inner=50)),
+            method = vcat(fill("SE-QRCS", 50*length(samples)),
+                        fill("Leverage", 50*length(samples))),
+            error  = error  = vcat(SEQRCS_error_vect, lev_error_vect)
+        )
+
+        df.sample = CategoricalArray(string.(df.sample), ordered=true, levels=string.(samples))
+
+        df_SEQRCS = filter(row -> row.method == "SE-QRCS", df)
+        df_lev  = filter(row -> row.method == "Leverage", df)
+
+        p = @df df_SEQRCS violin(:sample, :error, side=:left, label="SE-QRCS", color=:blue, yscale=:log10)
+        @df df_lev  violin!(:sample, :error, side=:right, label="Leverage", color=:orange)
+        xlabel!("Sampling size")
+        ylabel!("Error Distribution in CPD fit")
+        title!("Modified Synthetic tensor test: \n Rank $rk")
+        legend=:topleft
+        display(p)
     end
 end
 
