@@ -29,5 +29,8 @@ function check_fit(als, factors, cprank, λ, fact)
     println("$(dim(cprank))\t\t$(fact)\t$(fit)")
     return fit
 end
+include("colinearity_tensor_generator.jl")
 
-#include("./well.jl")
+# function cp_score(cp1, cp2)
+#     nums = [(x * y)[] / (norm(x) * norm(y) )  for (x,y) in zip(cp1, cp2)]
+# end
