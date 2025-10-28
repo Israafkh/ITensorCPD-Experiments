@@ -1,6 +1,7 @@
 function Collinearity_Tensor(r::Int, nb_factors, dim_vect, c, lam=nothing, elt=Float64)
     factors = Vector{ITensor}()
     l = Index(r,"cpd_rank")
+    c = elt(c)
     for (i,d) in zip(1:nb_factors, dim_vect)
         # Generate a random unit direction vector
         u = randn(elt, d)
@@ -8,7 +9,7 @@ function Collinearity_Tensor(r::Int, nb_factors, dim_vect, c, lam=nothing, elt=F
         u = reshape(u, d, 1)
 
         # Generate columns of the factor matrix
-        V = randn(d,r)
+        V = randn(elt, d,r)
         for j in 1:r
             V[:,j] -= dot(u,V[:,j])*u
         end
