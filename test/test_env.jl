@@ -29,6 +29,23 @@ function check_fit(als, factors, cprank, λ, fact)
     println("$(dim(cprank))\t\t$(fact)\t$(fit)")
     return fit
 end
+
+function check_loss(target, cpd, grammian, fact, updated_factor)
+    factors = cpd.factors
+    cpr = ITensorCPD.cp_rank(cpd)
+    mttkrp = ITensorCPD.had_contract([target, factors[1:end .!= fact]...], cpr)
+    g = itensor(ones(dim(grammian[1])), inds(grammian[1]))
+
+    for x in grammian[1:end .!= fact]
+        g = ITensors.hadamard_product!(g, g, x)
+    end
+
+    loss_function = norm(mttkrp - noprime(updated_factor * g)) 
+    println("CPD rank\tMode\tGradient")
+    println("$(dim(cpr))\t\t$(fact)\t$(loss_function)")
+    return loss_function
+end
+
 include("colinearity_tensor_generator.jl")
 
 # function cp_score(cp1, cp2)

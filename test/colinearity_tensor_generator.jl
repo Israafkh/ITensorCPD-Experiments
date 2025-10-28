@@ -1,4 +1,4 @@
-function Collinearity_Tensor(r::Int, nb_factors, dim_vect, c, lam=nothing, elt=Float64)
+function Colinearity_Tensor(r::Int, nb_factors, dim_vect, c, lam=nothing, elt=Float64)
     factors = Vector{ITensor}()
     l = Index(r,"cpd_rank")
     c = elt(c)
