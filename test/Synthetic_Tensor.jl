@@ -3,7 +3,12 @@ using LinearAlgebra, Statistics, DataFrames, CategoricalArrays, StatsPlots
 ## Generating a random tensor with CPD rank greater than dimension
 
 for elt in (Float32,Float64), c in [0.2, 0.8]
-    T, cp = Collinearity_Tensor(90, 3, (300,300,300), elt(c), nothing, elt)
+    A, cp = Colinearity_Tensor(90, 3, (400,400,400), elt(c), nothing, elt)
+    ind_A = inds(A)  
+    dims = dim.(ind_A)
+    C = randn(dims...)
+    N = itensor(C,ind_A...)
+    T = A+ 0.1*(norm(A)/norm(N))*N
     verbose= true
     samples = [1, 50, 150, 300, 500, 1000, 1300,1500]
     check_piv = ITensorCPD.CPDiffCheck(1e-5, 50)
