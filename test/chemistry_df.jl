@@ -1,4 +1,5 @@
 using PyCall, Conda, Pkg
+using ITensorCPD, ITensors, LinearAlgebra,ITensors.NDTensors
 #;source /Users/kpierce/Workspace/HaizhaoYang.github.io/codes/TN-MP-PDE-Solver/env/bin/activate
 Pkg.build("PyCall")
 
@@ -34,40 +35,53 @@ atm = [
     # NOTE orthogonalize these!
 auxmol = pyscf.df.addons.make_auxmol(mol, auxbasis)
 
- ints_3c2e = pyscf.df.incore.aux_e2(mol, auxmol, intor="int3c2e")
- nao = mol.nao
- orbitals = mf.mo_coeff
+ints_3c2e = pyscf.df.incore.aux_e2(mol, auxmol, intor="int3c2e")
+ints_2c2e = auxmol.intor("int2c2e")
+nao = mol.nao
 naux = auxmol.nao
+
+eri = mol.intor("int2e")
+eriT = itensor(eri, Index.(size(eri)))
+
+id = Diagonal(ones(naux))
+invMetric = ints_2c2e \ id
+
+aoI = Index(naux)
+Bleft = itensor(ints_3c2e, ind(eriT, 1), ind(eriT, 2), aoI)
+Bright = itensor(ints_3c2e, ind(eriT, 3), ind(eriT, 4), aoI')
+M = itensor(invMetric, aoI, aoI')
+
+1 -norm(eriT - Bleft * M * Bright) / norm(eriT)
+# Now check the error of DF integrals wrt the normal ERIs
+
+orbitals = mf.mo_coeff
 nocc = mol.nelectron ÷ 2
 nvirt = nao - nocc
 
-ovx = ints_3c2e[1:nocc, nocc+1:end, :]
-vvx = ints_3c2e[nocc+1:end, nocc+1:end, :]
-
-# ints_3c is the 3-center integral tensor (ij|P), where i and j are the
-# indices of AO basis and P is the auxiliary basis
-#ints_2c2e = auxmol.intor('int2c2e')
-
-using ITensors, ITensorCPD
-#is = Index.(size(ints_3c2e))
-is = Index.(size(ovx))
-Bov = itensor(ovx, is)
-is = Index.(size(vvx))
-Bvv = itensor(vvx, is)
-
-α = 5
-r = Index(Int(α * size(ints_3c2e)[3]), "CP rank")
-cpd = ITensorCPD.random_CPD(Bov, r);
+α = 3.0
+r = Index(Int(α * naux), "CP rank")
+cpd = ITensorCPD.random_CPD(Bleft, r);
 #alg = ITensorCPD.LevScoreSampled(2 * dim(r))
 #alg = ITensorCPD.QRPivProjected(1, Int(3 * dim(r)),)
-alg = ITensorCPD.direct()
-als = ITensorCPD.compute_als(Bov, cpd; alg, check=ITensorCPD.FitCheck(1e-3, 20, norm(Bov)));
-cpd_ovx = ITensorCPD.optimize(cpd, als; verbose=true);
 
-fac1 = itensor(array(cpd_ovx.factors[2]), ind(Bvv,1), r)
-fac2 = itensor(array(cpd_ovx.factors[2]), ind(Bvv,2), r)
-fac3 = itensor(array(cpd_ovx.factors[3]), ind(Bvv,3), r)
-cpd_vvx = ITensorCPD.CPD{ITensor}([fac1, fac2, fac3], cpd_ovx.λ)
-alg = ITensorCPD.QRPivProjected(1, Int(3 * dim(r)),)
-#als = ITensorCPD.compute_als(Bvv, cpd_vvx; alg, check=ITensorCPD.FitCheck(1e-3, 20, norm(Bvv)));
-ITensorCPD.optimize(cpd_vvx, als; verbose=true);
+alg = ITensorCPD.direct()
+als = ITensorCPD.compute_als(Bleft, cpd; alg, check=ITensorCPD.FitCheck(1e-3, 20, norm(Bleft)));
+optALS = ITensorCPD.optimize(cpd, als; verbose=true);
+BleftAppx = ITensorCPD.reconstruct(optALS)
+BrightAppx = itensor(data(BleftAppx), inds(Bright))
+
+### Compare the CPD approximated TEI tensor to the DF approximated TEI tensor
+dferi = Bleft * M * Bright
+1 -norm(eriT - BleftAppx * M * BrightAppx) / norm(eriT)
+
+##Run the same thing as above but with pivoted cheaper scheme
+# alg = ITensorCPD.SEQRCSPivProjected(1, Int(floor(6 * dim(r))), (1,2,3), (20,20,30))
+alg = ITensorCPD.QRPivProjected(1, Int(floor(5 * dim(r))))
+als = ITensorCPD.compute_als(Bleft, cpd; alg, check=ITensorCPD.CPDiffCheck(1e-4, 50));
+
+cpdRand = ITensorCPD.optimize(cpd, als; verbose=true);
+
+BleftAppx = ITensorCPD.reconstruct(cpdRand)
+BrightAppx = itensor(data(BleftAppx), inds(Bright))
+
+1 -norm(dferi - BleftAppx * M * BrightAppx) / norm(dferi)
