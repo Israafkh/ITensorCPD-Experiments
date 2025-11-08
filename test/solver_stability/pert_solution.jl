@@ -7,25 +7,6 @@ using ITensorCPD: compute_krp, matricize_tensor, solve_ls_problem, row_norm, pos
 ## certain levels of noise. Then we optimize the method and see if 
 ## we can recover the true solution
 
-function single_solve(alsRef, cpd, fact)
-    cprank = ITensorCPD.cp_rank(cpd)
-    target_ind = ind(cpd, fact)
-    factors = deepcopy(cpd.factors);
-    als = deepcopy(alsRef)
-
-    krp = compute_krp(als.mttkrp_alg, als, factors, cpd, cprank, fact)
-    mtkrp = matricize_tensor(als.mttkrp_alg, als, factors, cpd, cprank, fact)
-    solution = solve_ls_problem(als.mttkrp_alg, krp, mtkrp, cprank)
-    
-    factors[fact], λ = row_norm(solution, target_ind)
-    post_solve(als.mttkrp_alg, als, factors, λ, cpd, cprank, fact)
-
-    fit = check_fit(als, factors, cprank, λ, fact)
-    gram = [i * prime(i, tags=tags(cprank)) for i in cpd.factors]
-    fit = check_loss(alsRef.target, cpd, gram, fact, solution)
-    return ITensorCPD.CPD{ITensor}(factors, λ), als, fit
-end
-
 ## We should try for higher order tensors too
 is  = Index.((10,20,30,40));
 
