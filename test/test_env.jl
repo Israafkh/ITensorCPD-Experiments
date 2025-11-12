@@ -76,6 +76,7 @@ function check_loss(target, cpd, grammian, fact, updated_factor)
     return loss_function
 end
 
+using ITensorCPD: compute_krp, matricize_tensor, solve_ls_problem, row_norm, post_solve
 function single_solve(alsRef, cpd, fact)
     cprank = ITensorCPD.cp_rank(cpd)
     target_ind = ind(cpd, fact)
