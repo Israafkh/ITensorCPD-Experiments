@@ -111,7 +111,7 @@ function single_solve(alsRef, cpd, fact)
     post_solve(als.mttkrp_alg, als, factors, λ, cpd, cprank, fact)
 
     #fit = check_fit(als, factors, cprank, λ, fact)
-    fit = check_fit(alsRef, cpd.factors, cprank, cpd.λ, fact)
+    fit = check_fit(alsRef, factors, cprank, λ, fact)
     fit = check_grad(alsRef.target, cpd, gram, fact, solution)
     fit = check_loss(alsRef.target, cpd, gram, fact, solution)
     return ITensorCPD.CPD{ITensor}(factors, λ), als, fit
