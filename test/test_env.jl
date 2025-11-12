@@ -16,22 +16,6 @@ using Random
 using ITensorCPD: had_contract
 
 using ITensorCPD: had_contract
-# Fit = 1 - || T - \hat{T} || / || T ||
-# sqrt(T^2 - 2 * T \hat{T} + \hat{T}^2)
-## Update this to give the error in the LS 
-function check_fit(als, factors, cprank, λ, fact)
-    target = als.target
-    inner_prod = (had_contract([target, dag.(factors)...], cprank) * dag(λ))[]
-    partial_gram = [fact * dag(prime(fact; tags=tags(cprank))) for fact in factors];
-    fact_square = ITensorCPD.norm_factors(partial_gram, λ)
-    ref_norm = sqrt(sum(target .^2))
-    normResidual =
-        sqrt(abs(ref_norm * ref_norm + fact_square - 2 * abs(inner_prod)))
-    fit = 1.0 - normResidual / norm(ref_norm)
-    println("CPD rank\tMode\tCPD Accuracy")
-    println("$(dim(cprank))\t\t$(fact)\t$(fit)")
-    return fit
-end
 
 # Fit = 1 - || T - \hat{T} || / || T ||
 # sqrt(T^2 - 2 * T \hat{T} + \hat{T}^2)
