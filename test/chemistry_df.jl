@@ -15,26 +15,24 @@ cp_seqrcs = []
 cp_qr = []
 cp_lev = []
 cp_full = []
-atom = wat5
-for v in [7,8]
+for v in [5]
     se = []
     can = []
     lev = []
     full = []
     for atom in [wat2, wat3, wat4, wat5, wat6]
-    mol = pyscf.gto.M(; atom, basis="cc-pvtz", charge=0, spin=0, verbose=3)
+    mol = pyscf.gto.M(; atom=wat5, basis="cc-pvtz", charge=0, spin=0, verbose=3)
     auxbasis = "cc-pvtz-ri"
     mol.build()
     mf = pyscf.scf.RHF(mol).density_fit()
     mf.run()
-    mf.mo_coeff
         # NOTE orthogonalize these!
     auxmol = pyscf.df.addons.make_auxmol(mol, auxbasis)
 
     ## Am I in the correct basis?
     ints_3c2e = pyscf.df.incore.aux_e2(mol, auxmol, intor="int3c2e")
     ints_2c2e = auxmol.intor("int2c2e")
-    mf.mo_coeff
+    mf.mo_coeff ## Ordered AO x MO
 
     nao = mol.nao
     naux = auxmol.nao
@@ -52,11 +50,12 @@ for v in [7,8]
     halfMInv = (cholesky(Hermitian(ints_2c2e))).L \ id
 
     #eri = eri[1:nocc, nocc+1:end, 1:nocc, nocc+1:end]
-    df_int = ints_3c2e[1:nocc, nocc+1:end, :]
+    df_int = ints_3c2e[:, :, :]
     aoI = Index(naux, "aux")
     sz_df = size(df_int)
     Bleft = itensor(df_int,  Index(sz_df[1]), Index(sz_df[2]), aoI)
-    Bright = itensor(df_int, Index(sz_df[1]), Index(sz_df[2]), aoI')
+    Bleft = noprime(itensor(mf.mo_coeff, ind(Bleft, 2), ind(Bleft, 2)') * (itensor(mf.mo_coeff, ind(Bleft, 1), ind(Bleft,1)') * Bleft))
+    Bright = itensor(deepcopy(array(Bleft)), Index(sz_df[1]), Index(sz_df[2]), aoI')
     M = itensor(invMetric, aoI, aoI')
 
     # Mhalf = itensor(halfMInv', aoI, aoI')
@@ -73,27 +72,35 @@ for v in [7,8]
     cpd = ITensorCPD.random_CPD(Bleft, r;);
 
     dferi_norm = norm(Bleft * M * Bright);
-    if v == 5
+    linf = nothing
+    #if v == 5
         alg = ITensorCPD.direct()
         als = ITensorCPD.compute_als(Bleft, cpd; alg, check=ITensorCPD.FitCheck(1e-3, 20, norm(Bleft)));
         optALS = ITensorCPD.optimize(cpd, als; verbose=true);
         
         BleftAppx = ITensorCPD.had_contract(optALS[1], optALS[2], r) * ITensorCPD.had_contract(optALS[3], optALS[], r)
         BrightAppx = itensor(data(BleftAppx), inds(Bright));
+        diff = Bleft * M * Bright - BleftAppx * M * BrightAppx
+        linf = maximum(diff)
         push!(full, 1 -norm(Bleft * M * Bright - BleftAppx * M * BrightAppx) / dferi_norm)
     end
 
     ##Run the same thing as above but with pivoted cheaper scheme
     # alg = ITensorCPD.SEQRCSPivProjected(1, Int(floor(6 * dim(r))), (1,2,3), (20,20,30))
     ## PRobably need to preserve symmetry in the shuffling pivots.
+    linf_qr = []
+    linf_seqr = []
+    #for v in [3,4,5,6,7]
     pivdim = (Int(floor(v * dim(r))))
 
     @show pivdim
-    @show pivdim / (nocc * naux)
+    @show pivdim / (nao * naux)
+    @show pivdim / (nao * nao)
     @show pivdim / (nvirt * naux)
     @show pivdim / (nocc * nvirt)
 
-    samples = (pivdim, pivdim, Int(floor(0.9 * nocc * nvirt)))
+    #samples = (pivdim, pivdim, Int(floor(0.9 * nocc * nvirt)))
+    samples = (pivdim, pivdim, pivdim)
 
     alg = ITensorCPD.QRPivProjected(1, samples);
     als = ITensorCPD.compute_als(Bleft, cpd; alg, check=ITensorCPD.CPDiffCheck(1e-3, 50), shuffle_pivots=true);
@@ -102,30 +109,22 @@ for v in [7,8]
     BleftAppx = ITensorCPD.had_contract(cpdRand[1], cpdRand[2], r) * ITensorCPD.had_contract(cpdRand[3], cpdRand[], r)
     BrightAppx = itensor(data(BleftAppx), inds(Bright));
     1 -norm(Bleft * M * Bright - BleftAppx * M * BrightAppx) / dferi_norm
-    
-    # upcp, upals, fit = single_solve(als, cpd, 1);
-    # upcp, upals, fit = single_solve(upals, upcp, 2);
-    # upcp, upals, fit = single_solve(upals, upcp, 3);
-    # upcp, upals, fit = single_solve(upals, upcp, 2);
-    # upcp, upals, fit = single_solve(upals, upcp, 1);
-    # upcp, upals, fit = single_solve(upals, upcp, 2);
-    # upcp, upals, fit = single_solve(upals, upcp, 3);
-    
+
+    push!(linf_qr, maximum(Bleft * M * Bright - BleftAppx * M * BrightAppx))
     push!(can, 1 -norm(Bleft * M * Bright - BleftAppx * M * BrightAppx) / dferi_norm)
 
 
     alg = ITensorCPD.SEQRCSPivProjected(1, samples,
              (1,2,3), (100,100,100));
     als = ITensorCPD.compute_als(Bleft, cpd; alg, 
-        check=ITensorCPD.CPDiffCheck(1e-3, 50), shuffle_pivots=true);
+        check=ITensorCPD.CPDiffCheck(5e-5, 1000), shuffle_pivots=true);
     ## This forces the pivots of the first two modes to be the same, hopefully correcting for the symmetry of the problem.
-
     cpdRand = ITensorCPD.optimize(cpd, als; verbose=true);
 
     BleftAppx = ITensorCPD.had_contract(cpdRand[1], cpdRand[2], r) * ITensorCPD.had_contract(cpdRand[3], cpdRand[], r)
     BrightAppx = itensor(data(BleftAppx), inds(Bright));
 
-    1 -norm(Bleft * M * Bright - BleftAppx * M * BrightAppx) / dferi_norm
+    push!(linf_seqr, maximum(Bleft * M * Bright - BleftAppx * M * BrightAppx))
     push!(se, 1 -norm(Bleft * M * Bright - BleftAppx * M * BrightAppx) / dferi_norm)
 
     alg = ITensorCPD.LevScoreSampled(samples);
@@ -144,7 +143,7 @@ for v in [7,8]
     push!(cp_seqrcs, se)
     push!(cp_lev, lev)
     push!(cp_full, full)
-end
+# end
 
 using Plots
 #plot(cp_full.* 100, label="True CPD")
