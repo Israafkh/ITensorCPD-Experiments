@@ -95,35 +95,35 @@ function single_solve(alsRef, cpd, fact)
     factors[fact], λ = row_norm(solution, target_ind)
     post_solve(als.mttkrp_alg, als, factors, λ, cpd, cprank, fact)
 
-     #fit = check_fit(als, factors, cprank, λ, fact)
-     fit = check_fit(alsRef, factors, cprank, λ, fact)
-     # fit = check_grad(alsRef.target, cpd, gram, fact, solution)
-     # fit = check_loss(alsRef.target, cpd, gram, fact, solution)
+    #fit = check_fit(als, factors, cprank, λ, fact)
+    fit = check_fit(alsRef, factors, cprank, λ, fact)
+    # fit = check_grad(alsRef.target, cpd, gram, fact, solution)
+    # fit = check_loss(alsRef.target, cpd, gram, fact, solution)
     return ITensorCPD.CPD{ITensor}(factors, λ), als, fit
 end
 
 include("colinearity_tensor_generator.jl")
 
-function coherence(A; r=nothing, tol=1e-12)
-    m, n = size(A)
-    U,S,V = svd(A)
-    rank_full = sum(S .> tol)
-    if r === nothing
-        r_eff = max(1, rank_full)
-    else
-        r_eff = max(1, min(r, rank_full))
-    end
-    U = U[:, 1:r_eff]           
-    row_norms2 = vec(sum(abs2, U; dims=2))
-    mu = (m / r_eff) * maximum(row_norms2)
-    return mu, r_eff, row_norms2
-end
+function construct_large_lev_score_cpd(is, rindex::Index, nbad_points = 4)
 
-function high_coherence(m, r; spike_amp=10.0)
-    F = 0.1 .* randn(m, r)              
-    i = rand(1:m)                       
-    F[i, :] .= spike_amp .+ 0.01 .* randn(r)   
-    return F ./ sqrt.(sum(abs2, F; dims=1))
+    # nd = length(is)
+    rank=dim(rindex)
+    factors = Vector{ITensor}()
+    for m in is
+        U = randn(dim(m), rank)
+        U[:, 1:nbad_points] .= 0.0
+        U[1:nbad_points, :] .= 0.0
+
+        for i in 1:nbad_points
+            U[i,i] = 1.0
+        end
+        U = copy(qr(U).Q)
+        _, _, V = svd(randn(dim(m),rank))
+
+        push!(factors, itensor(U[:, 1:rank] * V', m, rindex))
+    end
+
+    return ITensorCPD.CPD{ITensor}(factors, itensor(ones(rank), rindex))
 end
 
 # function cp_score(cp1, cp2)

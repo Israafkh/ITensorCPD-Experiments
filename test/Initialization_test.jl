@@ -50,19 +50,7 @@ for elt in (Float32,Float64), c in [0.2, 0.8]
                 push!(SEQRCS_error_vect_HOSVD,check_fit(alsQR, int_opt_T.factors, r, int_opt_T.λ, 1))
 
                 inds_T= inds(T)
-                lambdaa=nothing
-                factors = Vector{ITensor}()
-                for i in inds_T
-                    factor = high_coherence(dim(i),dim(r))
-                    fact = ITensors.itensor(factor,i,r)
-                    fact,lambda = ITensorCPD.row_norm(fact,i)
-                    mu, r_eff, row2 = coherence(array(fact); r = dim(r))
-                    println("mode $i: μ = $(round(mu, sigdigits=5)), r_eff = $r_eff")
-                    push!(factors,fact)
-                    lambdaa=lambda
-                end
-                cpd_High = ITensorCPD.CPD{ITensor}(factors, lambdaa)
-
+                cpd_High = construct_large_lev_score_cpd(inds_T,r , 2)
                 alsQR = ITensorCPD.compute_als(T,cpd_High;alg=alg_QR, check =check_piv);
                 # println("Start SEQRCSPIVProjected with High_coh")
                 int_opt_T =ITensorCPD.optimize(cpd_High,alsQR;verbose);
@@ -109,37 +97,5 @@ for elt in (Float32,Float64), c in [0.2, 0.8]
         xlabel!("Number of Samples")
         ylabel!("Error in CPD Fit")
         title!("Synthetic Tensor Test:\n Rank $rk")
-
-
-        n = nothing
-        if elt == Float64
-            n = "F64"
-        else
-            n = "F32"
-        end
-        # savefig("$(@__DIR__)/../plots/synthetic_tensor/rank_$(rk)_test_$(n)_colin_$(c).pdf")
-        display(plt2)
-
-        #Violin plot of synthetic tensor
-        df = DataFrame(
-            sample = vcat(repeat(samples, inner=nrepeats), repeat(samples, inner=nrepeats)),
-            method = vcat(fill("SE-QRCS", nrepeats*length(samples)),
-                        fill("Leverage", nrepeats*length(samples))),
-            error  = vcat(SEQRCS_error_vect, lev_error_vect)
-        )
-
-        df.sample = CategoricalArray(string.(df.sample), ordered=true, levels=string.(samples))
-
-        df_SEQRCS = filter(row -> row.method == "SE-QRCS", df)
-        df_lev  = filter(row -> row.method == "Leverage", df)
-
-        p = @df df_SEQRCS violin(:sample, :error, side=:left, label="SE-QRCS", color=:blue, yscale=:log10)
-        @df df_lev  violin!(:sample, :error, side=:right, label="Leverage", color=:orange)
-        xlabel!("Sampling size")
-        ylabel!("Error distribution in CPD fit")
-        title!("Synthetic tensor test: \n Rank $rk")
-        legend=:topleft
-        display(p)
-
     end
 end
