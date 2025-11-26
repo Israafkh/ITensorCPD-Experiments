@@ -8,13 +8,11 @@ using ITensorCPD
 using ITensors
 using HDF5
 using Plots
-using ITensorNetworks
+# using ITensorNetworks
 using Profile
 
 
 using Random
-using ITensorCPD: had_contract
-
 using ITensorCPD: had_contract
 
 # Fit = 1 - || T - \hat{T} || / || T ||
@@ -138,3 +136,12 @@ end
 # function cp_score(cp1, cp2)
 #     nums = [(x * y)[] / (norm(x) * norm(y) )  for (x,y) in zip(cp1, cp2)]
 # end
+
+function compute_lev_score(A::Matrix)
+    cols = size(A)[1]
+    rows = size(A)[2]
+    q, _ = qr(A)
+    q = copy(q)
+    q .*= q
+    return [sum(q[i, 1:rows]) for i in 1:cols]
+end
