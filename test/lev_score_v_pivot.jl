@@ -13,20 +13,21 @@ i,j,k = 330,34,35
 bad = 2
 cpd = construct_with_large_levs((i,j,k), 5, bad)
 r = ITensorCPD.cp_rank(cpd)
+T = had_contract(cpd[1], cpd[2], r) * had_contract(cpd[3], cpd[], r)
 
-krp = ITensorCPD.had_contract(cpd[2], cpd[3], r)
-krpm = reshape(array(krp), (j * k), dim(r))
+krp = ITensorCPD.had_contract(cpd[1], cpd[2], r)
+krpm = reshape(array(krp), (i * j), dim(r))
 levs = compute_lev_score(krpm)
 _,_,p = qr(krpm', ColumnNorm())
 
-T = had_contract(cpd[1], cpd[2], r) * had_contract(cpd[3], cpd[], r)
-Tm = reshape(array(T), i, j*k)
+Tm = reshape(array(T, (ind(T,3), ind(T, 1), ind(T,2))), k, i*j)
 _,_,pT = qr(Tm, ColumnNorm())
 levT = compute_lev_score(copy(Tm'))
 
 plot(levs)
 plot!(levs[p])
 plot!(levs[pT])
+plot!(xscale=:log10)
 
 #plot(levT)
 
