@@ -104,13 +104,13 @@ end
 
 include("colinearity_tensor_generator.jl")
 
-function construct_large_lev_score_cpd(is, rindex::Index, nbad_points = 4)
+function construct_with_large_levs(is, rank::Int, nbad_points = 4; rng=RandomDevice())
 
-    # nd = length(is)
-    rank=dim(rindex)
+    nd = length(is)
+    rindex = Index(rank, "CPRank")
     factors = Vector{ITensor}()
     for m in is
-        U = randn(dim(m), rank)
+        U = randn(m, rank)
         U[:, 1:nbad_points] .= 0.0
         U[1:nbad_points, :] .= 0.0
 
@@ -118,9 +118,18 @@ function construct_large_lev_score_cpd(is, rindex::Index, nbad_points = 4)
             U[i,i] = 1.0
         end
         U = copy(qr(U).Q)
-        _, _, V = svd(randn(dim(m),rank))
+        v = [(1:m)...]
+        new_pos = rand(rng, 1:(m÷3))
+        v[new_pos] = 1
+        v[1] = new_pos
 
-        push!(factors, itensor(U[:, 1:rank] * V', m, rindex))
+        new_pos = rand(rng, 2 * (m÷3)+1:m) 
+        v[new_pos] = 2
+        v[2] = new_pos
+        U = U[v,:]
+        _, _, V = svd(randn(m,rank))
+
+        push!(factors, itensor(U[:, 1:rank] * V', Index(m), rindex))
     end
 
     return ITensorCPD.CPD{ITensor}(factors, itensor(ones(rank), rindex))
