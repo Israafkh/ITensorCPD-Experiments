@@ -116,15 +116,19 @@ function construct_with_large_levs(is, rank::Int, nbad_points = 4; rng=RandomDev
             U[i,i] = 1.0
         end
         U = copy(qr(U).Q)
-        v = [(1:m)...]
-        new_pos = rand(rng, 1:(m÷3))
-        v[new_pos] = 1
-        v[1] = new_pos
+        if nbad_points == 2
+            v = [(1:m)...]
+            new_pos = rand(rng, 1:(m÷3))
+            v[new_pos] = 1
+            v[1] = new_pos
 
-        new_pos = rand(rng, 2 * (m÷3)+1:m) 
-        v[new_pos] = 2
-        v[2] = new_pos
-        U = U[v,:]
+            new_pos = rand(rng, 2 * (m÷3)+1:m) 
+            v[new_pos] = 2
+            v[2] = new_pos
+            U = U[v,:]
+        else
+            U = U[randperm(m), :]
+        end
         _, _, V = svd(randn(m,rank))
 
         push!(factors, itensor(U[:, 1:rank] * V', Index(m), rindex))
