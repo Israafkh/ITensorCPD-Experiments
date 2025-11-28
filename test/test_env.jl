@@ -96,27 +96,28 @@ function single_solve(alsRef, cpd, fact)
     #fit = check_fit(als, factors, cprank, λ, fact)
     fit = check_fit(alsRef, factors, cprank, λ, fact)
     # fit = check_grad(alsRef.target, cpd, gram, fact, solution)
-    # fit = check_loss(alsRef.target, cpd, gram, fact, solution)
+    fit = check_loss(alsRef.target, cpd, gram, fact, solution)
     return ITensorCPD.CPD{ITensor}(factors, λ), als, fit
 end
 
 include("colinearity_tensor_generator.jl")
 
-function construct_with_large_levs(is, rank::Int, nbad_points = 4; rng=RandomDevice())
+function construct_large_lev_score_cpd(is, rank::Int, nbad_points = 4; rng=RandomDevice())
 
     nd = length(is)
     rindex = Index(rank, "CPRank")
     factors = Vector{ITensor}()
-    for m in is
+    for (m,n) in zip(is, 1:nd)
+        nbad_point = length(nbad_points) == 1 ? nbad_points : nbad_points[n]
         U = randn(m, rank)
-        U[:, 1:nbad_points] .= 0.0
-        U[1:nbad_points, :] .= 0.0
+        U[:, 1:nbad_point] .= 0.0
+        U[1:nbad_point, :] .= 0.0
 
-        for i in 1:nbad_points
+        for i in 1:nbad_point
             U[i,i] = 1.0
         end
         U = copy(qr(U).Q)
-        if nbad_points == 2
+        if nbad_point == 2
             v = [(1:m)...]
             new_pos = rand(rng, 1:(m÷3))
             v[new_pos] = 1
@@ -145,7 +146,7 @@ function compute_lev_score(A::Matrix)
     cols = size(A)[1]
     rows = size(A)[2]
     q, _ = qr(A)
-    q = copy(q)
+    q = Matrix(q)
     q .*= q
     return [sum(q[i, 1:rows]) for i in 1:cols]
 end
