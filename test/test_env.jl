@@ -102,14 +102,15 @@ end
 
 include("colinearity_tensor_generator.jl")
 
-function construct_large_lev_score_cpd(is, rank::Int, nbad_points = 4; rng=RandomDevice())
+function construct_large_lev_score_cpd(is, rank, nbad_points = 4; rng=RandomDevice())
 
+    rank = rank isa Index ? rank : Index(rank, "CPRank")
+    drank = dim(rank)
     nd = length(is)
-    rindex = Index(rank, "CPRank")
     factors = Vector{ITensor}()
     for (m,n) in zip(is, 1:nd)
         nbad_point = length(nbad_points) == 1 ? nbad_points : nbad_points[n]
-        U = randn(m, rank)
+        U = randn(dim(m), drank)
         U[:, 1:nbad_point] .= 0.0
         U[1:nbad_point, :] .= 0.0
 
@@ -118,24 +119,25 @@ function construct_large_lev_score_cpd(is, rank::Int, nbad_points = 4; rng=Rando
         end
         U = copy(qr(U).Q)
         if nbad_point == 2
-            v = [(1:m)...]
-            new_pos = rand(rng, 1:(m÷3))
+            v = [(1:dim(m))...]
+            new_pos = rand(rng, 1:(dim(m)÷3))
             v[new_pos] = 1
             v[1] = new_pos
 
-            new_pos = rand(rng, 2 * (m÷3)+1:m) 
+            new_pos = rand(rng, 2 * (dim(m)÷3)+1:dim(m))
             v[new_pos] = 2
             v[2] = new_pos
             U = U[v,:]
         else
-            U = U[randperm(m), :]
+            U = U[randperm(dim(m)), :]
         end
-        _, _, V = svd(randn(m,rank))
+        _, _, V = svd(randn(dim(m),drank))
 
-        push!(factors, itensor(U[:, 1:rank] * V', Index(m), rindex))
+        ix = m isa Index ? m : Index(m)
+        push!(factors, itensor(U[:, 1:drank] * V', ix, rank))
     end
 
-    return ITensorCPD.CPD{ITensor}(factors, itensor(ones(rank), rindex))
+    return ITensorCPD.CPD{ITensor}(factors, itensor(ones(drank), rank))
 end
 
 # function cp_score(cp1, cp2)
