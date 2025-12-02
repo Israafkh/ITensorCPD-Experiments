@@ -1,98 +1,127 @@
 # This is to check to see how the pivots compare to the positions of the leverage scores in the QR of a random tensor
 include("test_env.jl")
 
-using LinearAlgebra, AppleAccelerate, Plots, Random
+using LinearAlgebra, AppleAccelerate, Plots, Random, Revise
 elt = Float64
+
+########
+# order 3 mode 1
+########
 c = 0.8
-i,j,k = 330,34,35
+#i,j,k = 500,500,500
+i,j,k = 531,308,640
+#A, cp = Colinearity_Tensor(25, 3, (i,j,k), elt(c), nothing, elt)
+#r = ITensorCPD.cp_rank(cp)
+#A = random_itensor(elt, Index.((i,j,k)))
+# cp = ITensorCPD.random_CPD(A, 5)
+# r = Index(10, "CPRank")
+bad = 160
+r = 200
+cpd = construct_large_lev_score_cpd((i,j,k), r, bad);
+r = ITensorCPD.cp_rank(cpd);
+T = had_contract(cpd[1], cpd[2], r) * had_contract(cpd[3], cpd[], r)
+
+target = T
+
+_,_,pT = qr(reshape(array(target), (i,j*k)), ColumnNorm())
+krpm = reshape(array(ITensorCPD.had_contract(cpd[2], cpd[3], r)), (j * k , dim(r)))
+Tm = compute_lev_score(krpm)
+
+rel = Tm ./ maximum(Tm)
+sum(i > 0.1 for i in rel)
+plot(sort(Tm; rev=true)[1:50], marker=:star, label="Sorted Scores")
+plot!((Tm[pT][1:50];), label="Pivoted QR Ordering")
+plot!(title="Sorted Leverage Scores of the KRP",ylabel="Leverage Score Value", xlabel="Sorted Position")
+# plot!(yrange=[-0.01,0.5])
+
+savefig("plots/lev_score_order/rank_($(i),$(j),$(k))_bad_$(bad)_rank_$(dim(r)).pdf")
+
+
+###################
+## Middle Mode order 3
+###################
+#i,j,k = 500,500,500
+i,j,k = 531,308,640
 #A, cp = Colinearity_Tensor(25, 3, (i,j,k), elt(c), nothing, elt)
 #r = ITensorCPD.cp_rank(cp)
 #A = random_itensor(elt, Index.((i,j,k)))
 # cp = ITensorCPD.random_CPD(A, 5)
 # r = Index(10, "CPRank")
 bad = 2
-cpd = construct_with_large_levs((i,j,k), 5, bad)
-r = ITensorCPD.cp_rank(cpd)
-T = had_contract(cpd[1], cpd[2], r) * had_contract(cpd[3], cpd[], r)
+r = 10
+cpd = construct_large_lev_score_cpd((i,j,k), r, bad);
+r = ITensorCPD.cp_rank(cpd);
+T = had_contract(cpd[2], cpd[1], r) * had_contract(cpd[3], cpd[], r)
 
-krp = ITensorCPD.had_contract(cpd[1], cpd[2], r)
-krpm = reshape(array(krp), (i * j), dim(r))
-levs = compute_lev_score(krpm)
-_,_,p = qr(krpm', ColumnNorm())
+target = T
 
-Tm = reshape(array(T, (ind(T,3), ind(T, 1), ind(T,2))), k, i*j)
-_,_,pT = qr(Tm, ColumnNorm())
-levT = compute_lev_score(copy(Tm'))
+_,_,pT = qr(reshape(array(target), (j, i*k)), ColumnNorm())
+krpm = reshape(array(ITensorCPD.had_contract(cpd[1], cpd[3], r)), (i * k , dim(r)))
+Tm = compute_lev_score(krpm)
 
-plot(levs)
-plot!(levs[p])
-plot!(levs[pT])
-plot!(xscale=:log10)
+plot(sort(Tm; rev=true)[1:50], marker=:star, label="Exact Sorting")
+plot!((Tm[pT][1:50];), label="Pivoted QR Ordering")
+plot!(title="Sorted Leverage Scores of the KRP",ylabel="Leverage Score Value", xlabel="Sorted Position")
+# plot!(yrange=[-0.01,0.5])
 
-#plot(levT)
+savefig("plots/lev_score_order/rank_($(i),$(j),$(k))_bad_$(bad)_rank_$(dim(r)).pdf")
 
 
+####################
+## order 4 test
+####################
+#i,j,k,l = 40,40,40,40
+i,j,k,l = 40, 53, 73, 32
+#A, cp = Colinearity_Tensor(25, 3, (i,j,k), elt(c), nothing, elt)
+#r = ITensorCPD.cp_rank(cp)
+#A = random_itensor(elt, Index.((i,j,k)))
+# cp = ITensorCPD.random_CPD(A, 5)
+# r = Index(10, "CPRank")
+bad = 2
+r = 30
+cpd = construct_large_lev_score_cpd((i,j,k,l), r, bad);
+r = ITensorCPD.cp_rank(cpd);
+T = had_contract([cpd[1], cpd[2],cpd[3]], r) * had_contract(cpd[4], cpd[], r)
 
-A = ITensorCPD.had_contract(cp[1], cp[2], r) * ITensorCPD.had_contract(cp[3], cp[], r)
-t = reshape(array(A), (i, j * k))
-_,rp,p = qr(t, ColumnNorm());
+target = T
 
-# k_sk = 1000
-# m = dim(i)
-# l=Int(round(3 * m * log(m))) 
-# s=Int(round(log(m)))
-# n = 1
-# _,rp,p = ITensorCPD.SEQRCS(A,n,ind(A, 1),l,s,k_sk)
+_,_,pT = qr(reshape(array(target), (i,j*k*l)), ColumnNorm())
+krpm = reshape(array(ITensorCPD.had_contract([cpd[2], cpd[3], cpd[4]], r)), (j * k * l, dim(r)))
+Tm = compute_lev_score(krpm)
 
-krp = had_contract(cp[2], cp[3], r)
+plot(sort(Tm; rev=true)[1:50], marker=:star, label="True Sorted Scores")
+plot!(sort(Tm[pT][1:50]; rev=true), label="Pivoted QR Ordering")
+plot!(title="Sorted Leverage Scores of the KRP",ylabel="Leverage Score Value", xlabel="Sorted Position")
+# plot!(yrange=[-0.01,0.5])
+savefig("plots/lev_score_order/rank_($(i),$(j),$(k),$(l))_bad_$(bad)_rank_$(dim(r)).pdf")
 
-krpm = reshape(array(krp), (j * k, dim(r)))
+####################
+## mode 2 order 4 test
+####################
+#i,j,k,l = 40,40,40,40
+i,j,k,l = 40, 53, 73, 32
+#A, cp = Colinearity_Tensor(25, 3, (i,j,k), elt(c), nothing, elt)
+#r = ITensorCPD.cp_rank(cp)
+#A = random_itensor(elt, Index.((i,j,k)))
+# cp = ITensorCPD.random_CPD(A, 5)
+# r = Index(10, "CPRank")
+bad = 2
+r = 30
+cpd = construct_large_lev_score_cpd((i,j,k,l), r, bad);
+r = ITensorCPD.cp_rank(cpd);
+T = had_contract([cpd[2], cpd[1],cpd[3]], r) * had_contract(cpd[4], cpd[], r)
 
-s = qr(krpm');
-combo = Index(j * k)
-q,_ = qr(krpm)
-q = copy(q)
-q .*= q
-levs = [sum(q[i,1:dim(r)]) for i in 1:dim(combo)]
-#levs = ITensorCPD.compute_leverage_score_probabilitiy(itensor(krpm, combo, r), combo)
+target = T
 
-sorted_levs = sortperm(levs; rev=true)
+_,_,pT = qr(reshape(array(target), (j,i*k*l)), ColumnNorm())
+krpm = reshape(array(ITensorCPD.had_contract([cpd[1], cpd[3], cpd[4]], r)), (i * k * l, dim(r)))
+Tm = compute_lev_score(krpm)
 
-plot(sortperm(levs; rev=true)[1:i]; marker=:circle)
-plot!(p[1:i]; marker=:circle)
-levs_in_p = [sorted_levs[x] ∈ p[1:i] for x in 1:i]
-@show sum(levs_in_p) / i
-sum([sorted_levs[x] ∈ p[1:i] for x in 1:bad]) / bad
+rel = Tm ./ maximum(Tm)
+sum(i > 0.1 for i in rel)
+plot(sort(Tm; rev=true)[1:50], marker=:star, label="True Sorted Scores")
+plot!(sort(Tm[pT][1:50]; rev=true), label="Pivoted QR Ordering")
+plot!(title="Sorted Leverage Scores of the KRP",ylabel="Leverage Score Value", xlabel="Sorted Position")
+# plot!(yrange=[-0.01,0.5])
+savefig("plots/lev_score_order/rank_($(i),$(j),$(k),$(l))_bad_$(bad)_rank_$(dim(r)).pdf")
 
-opt = nothing
-r = Index(25, "CPD")
-@time begin
-    s =  Int(round(dim(r)^(1.5)))
-    guess = ITensorCPD.random_CPD(A, r);
-    als = ITensorCPD.compute_als(A, guess; alg=ITensorCPD.SEQRCSPivProjected(1, s, (1,2,3), (10)), check=ITensorCPD.CPDiffCheck(1e-3, 100,));
-    #als = ITensorCPD.compute_als(A, guess; alg=ITensorCPD.QRPivProjected(1,s), check=ITensorCPD.CPDiffCheck(1e-3, 1000,));
-    #als = ITensorCPD.compute_als(A, guess; alg=ITensorCPD.LevScoreSampled(s), check=ITensorCPD.CPDiffCheck(1e-3, 1000,));
-    opt = ITensorCPD.optimize(guess, als; verbose=true);
-    check_fit(als, opt.factors, r, opt.λ, 1)
-end;
-
-
-
-###
-#i,j,k = (200, 300, 400)
-#cpdT = construct_with_large_levs((i,j,k), 30, 5);
-# A, cpdT = Colinearity_Tensor(10, (i,j,k), 0.8);
-# r = cp_rank(cpdT)
-
-# i,j = size(cpdT[1])
-# A = array(cpdT[1])
-# q,_ = qr(A)
-# q = copy(q)
-# q .*= q
-
-# levs = [sum(q[i,1:j]) for i in 1:i]
-
-# _,_,p = qr(A', ColumnNorm())
-
-# plot(levs)
-# plot!(levs[p])
