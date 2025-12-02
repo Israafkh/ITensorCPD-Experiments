@@ -137,7 +137,7 @@ function construct_large_lev_score_cpd(is, rank, nbad_points = 4; rng=RandomDevi
         push!(factors, itensor(U[:, 1:drank] * V', ix, rank))
     end
 
-    return ITensorCPD.CPD{ITensor}(factors, itensor(ones(drank), rank))
+    return ITensorCPD.CPD{ITensor}(factors, itensor(randn(drank), rank))
 end
 
 # function cp_score(cp1, cp2)
