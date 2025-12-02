@@ -125,3 +125,32 @@ plot!(title="Sorted Leverage Scores of the KRP",ylabel="Leverage Score Value", x
 # plot!(yrange=[-0.01,0.5])
 savefig("plots/lev_score_order/mode_2_rank_($(i),$(j),$(k),$(l))_bad_$(bad)_rank_$(dim(r)).pdf")
 
+######## 
+## Test to show levs of KRP are the same as the levs of R in QR
+
+i,j,k = 500,500,500
+#i,j,k = 531,308,640
+#A, cp = Colinearity_Tensor(25, 3, (i,j,k), elt(c), nothing, elt)
+#r = ITensorCPD.cp_rank(cp)
+#A = random_itensor(elt, Index.((i,j,k)))
+# cp = ITensorCPD.random_CPD(A, 5)
+# r = Index(10, "CPRank")
+bad = 2
+r = 10
+cpd = construct_large_lev_score_cpd((i,j,k), r, bad);
+r = ITensorCPD.cp_rank(cpd);
+T = had_contract(cpd[1], cpd[2], r) * had_contract(cpd[3], cpd[], r)
+
+target = T
+
+targetm = reshape(array(target), (i,j*k))
+u,s,v = svd(targetm)
+_,rT = qr(reshape(array(target), (i,j*k)),)
+krpm = reshape(array(ITensorCPD.had_contract(cpd[2],cpd[3], r)), (j * k , dim(r)))
+Tm = compute_lev_score(krpm)
+plot((Tm), label="KRP")
+#lv = [sum(rT[:, i]) for i in 1:size(rT)[2]] 
+lv = compute_lev_score(copy(rT'[:,1:10]))
+plot!(lv, label="R Matrix")
+
+plot(Tm - lv)
