@@ -18,6 +18,10 @@ using ITensorCPD: had_contract
 # Fit = 1 - || T - \hat{T} || / || T ||
 # sqrt(T^2 - 2 * T \hat{T} + \hat{T}^2)
 ## Update this to give the error in the LS 
+function check_fit(als, cpd)
+    return check_fit(als, cpd.factors, ITensorCPD.cp_rank(cpd), cpd.λ, 1)
+end
+
 function check_fit(als, factors, cprank, λ, fact)
     target = als.target
     inner_prod = (had_contract([target, dag.(factors)...], cprank) * dag(λ))[]
