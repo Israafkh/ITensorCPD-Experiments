@@ -1,5 +1,6 @@
-function Colinearity_Tensor(r::Int, nb_factors, dim_vect, c, lam=nothing, elt=Float64)
+function Colinearity_Tensor(r::Int, dim_vect, c, lam=nothing, elt=Float64)
     factors = Vector{ITensor}()
+    nb_factors = length(dim_vect)
     l = Index(r,"cpd_rank")
     c = elt(c)
     for (i,d) in zip(1:nb_factors, dim_vect)
@@ -25,7 +26,7 @@ function Colinearity_Tensor(r::Int, nb_factors, dim_vect, c, lam=nothing, elt=Fl
     
     lam_tensor = nothing
     if isnothing(lam)
-        lam_tensor = ITensor(ones(elt, dim(l)), l)
+        lam_tensor = ITensor(randn(elt, dim(l)), l)
     else
         lam_tensor = ITensors.itensor(lam,l)
     end

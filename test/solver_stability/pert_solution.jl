@@ -10,7 +10,7 @@ using ITensorCPD: compute_krp, matricize_tensor, solve_ls_problem, row_norm, pos
 ## We should try for higher order tensors too
 is  = Index.((10,20,30,40));
 
-T, cpd_exact = Colinearity_Tensor(20, 3, (100,100,100), 0.8, nothing, Float64);
+T, cpd_exact = Colinearity_Tensor(20, (100,100,100), 0.8, nothing, Float64);
 
 check=ITensorCPD.FitCheck(0, 100, norm(T));
 

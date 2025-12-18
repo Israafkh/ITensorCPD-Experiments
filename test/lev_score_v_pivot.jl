@@ -10,7 +10,7 @@ elt = Float64
 c = 0.8
 i,j,k = 500,500,500
 #i,j,k = 531,308,640
-#A, cp = Colinearity_Tensor(25, 3, (i,j,k), elt(c), nothing, elt)
+#A, cp = Colinearity_Tensor(25, (i,j,k), elt(c), nothing, elt)
 #r = ITensorCPD.cp_rank(cp)
 #A = random_itensor(elt, Index.((i,j,k)))
 # cp = ITensorCPD.random_CPD(A, 5)
@@ -42,7 +42,7 @@ savefig("plots/lev_score_order/mode_1_rank_($(i),$(j),$(k))_bad_$(bad)_rank_$(di
 ###################
 # #i,j,k = 500,500,500
 # i,j,k = 531,308,640
-# #A, cp = Colinearity_Tensor(25, 3, (i,j,k), elt(c), nothing, elt)
+# #A, cp = Colinearity_Tensor(25, (i,j,k), elt(c), nothing, elt)
 # #r = ITensorCPD.cp_rank(cp)
 # #A = random_itensor(elt, Index.((i,j,k)))
 # # cp = ITensorCPD.random_CPD(A, 5)
@@ -72,7 +72,7 @@ savefig("plots/lev_score_order/mode_2_rank_($(i),$(j),$(k))_bad_$(bad)_rank_$(di
 ####################
 i,j,k,l = 120, 120, 120, 120
 #i,j,k,l = 150, 183, 103, 92
-#A, cp = Colinearity_Tensor(25, 3, (i,j,k), elt(c), nothing, elt)
+#A, cp = Colinearity_Tensor(25, (i,j,k), elt(c), nothing, elt)
 #r = ITensorCPD.cp_rank(cp)
 #A = random_itensor(elt, Index.((i,j,k)))
 # cp = ITensorCPD.random_CPD(A, 5)
@@ -100,7 +100,7 @@ savefig("plots/lev_score_order/mode_1_rank_($(i),$(j),$(k),$(l))_bad_$(bad)_rank
 ####################
 #i,j,k,l = 40,40,40,40
 #i,j,k,l = 40, 53, 73, 32
-#A, cp = Colinearity_Tensor(25, 3, (i,j,k), elt(c), nothing, elt)
+#A, cp = Colinearity_Tensor(25, (i,j,k), elt(c), nothing, elt)
 #r = ITensorCPD.cp_rank(cp)
 #A = random_itensor(elt, Index.((i,j,k)))
 # cp = ITensorCPD.random_CPD(A, 5)
@@ -130,7 +130,7 @@ savefig("plots/lev_score_order/mode_2_rank_($(i),$(j),$(k),$(l))_bad_$(bad)_rank
 
 i,j,k = 500,500,500
 #i,j,k = 531,308,640
-#A, cp = Colinearity_Tensor(25, 3, (i,j,k), elt(c), nothing, elt)
+#A, cp = Colinearity_Tensor(25, (i,j,k), elt(c), nothing, elt)
 #r = ITensorCPD.cp_rank(cp)
 #A = random_itensor(elt, Index.((i,j,k)))
 # cp = ITensorCPD.random_CPD(A, 5)

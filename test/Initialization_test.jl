@@ -3,7 +3,7 @@ using LinearAlgebra, Statistics, DataFrames, CategoricalArrays, StatsPlots
 ## Generating a random tensor with CPD rank greater than dimension
 
 for elt in (Float32,Float64), c in [0.2, 0.8]
-    A, cp = Colinearity_Tensor(90, 3, (400,400,400), elt(c), nothing, elt)
+    A, cp = Colinearity_Tensor(90, (400,400,400), elt(c), nothing, elt)
     ind_A = inds(A)  
     dims = dim.(ind_A)
     C = randn(dims...)
