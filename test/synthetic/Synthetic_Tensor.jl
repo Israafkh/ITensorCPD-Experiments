@@ -113,16 +113,18 @@ T1 =reshape(array(T, (i, j, k)), (dim(i), dim(j)*dim(k)))
 T1[:,1:40].*=100
 T= itensor(T1,i,j,k)
 verbose= true
-samples = [400,500,600,800,1000,1200,1500,2000]
-check_piv = ITensorCPD.CPAngleCheck(1e-5, 100)
+#samples = [400,500,600,800,1000,1200,1500,2000]
+samples = [200, 400, 600, 800, 1000, 1500, 2000]
+check_piv = ITensorCPD.CPDiffCheck(1e-2, 100)
 check_direct = ITensorCPD.FitCheck(1e-5, 50,sqrt(sum(T.^2)) )
 SEQRCS_error_mat = Matrix{Float64}(undef, 20, length(samples))
 lev_error_mat = Matrix{Float64}(undef, 20, length(samples))
+rng=RandomDevice()
 for rk in [100,110,]    
     r = Index(rk, "CP_rank")
     err_SEQRCS = Vector{Float64}()
     err_leverage = Vector{Float64}()
-    cp_T = ITensorCPD.random_CPD(T,r,rng=RandomDevice())
+    cp_T = ITensorCPD.random_CPD(T,r; rng)
 
     SEQRCS_error_mat = Matrix{Float64}(undef, 20, length(samples))
     lev_error_mat = Matrix{Float64}(undef, 20, length(samples))
@@ -135,9 +137,10 @@ for rk in [100,110,]
             while !success
                 try
                     alsQR = ITensorCPD.compute_als(T,cp_T; alg = ITensorCPD.SEQRCSPivProjected(1, s, (1,2,3),(90,)),check = check_piv);
+                    @show alsQR.mttkrp_alg
                     int_opt_T =
-                    ITensorCPD.optimize(cp_T,alsQR;verbose=false);
-                    push!(SEQRCS_error_vect,check_fit(alsQR, int_opt_T.factors, r, int_opt_T.λ, 1))
+                    ITensorCPD.optimize(cp_T,alsQR;verbose=true);
+                    push!(SEQRCS_error_vect,check_fit(T, int_opt_T))
                     success = true
                 catch
                 end
@@ -152,7 +155,7 @@ for rk in [100,110,]
                 try
                     alslev = ITensorCPD.compute_als(T,cp_T;alg = ITensorCPD.LevScoreSampled(s),check = check_piv)
                     int_opt_T = ITensorCPD.optimize(cp_T, alslev; verbose=false)
-                    push!(lev_error_vect,check_fit(alslev, int_opt_T.factors, r, int_opt_T.λ, 1))
+                    push!(lev_error_vect,check_fit(T, int_opt_T))
                     success = true
                 catch
                 end
@@ -169,7 +172,7 @@ for rk in [100,110,]
     direct_error = check_fit(alsNormal, opt_T.factors, r, opt_T.λ, 1)
 
     plt2 = plot(samples, direct_error .* ones(length(samples)), marker=:o, label="Normal Equations")
-    plot!(samples, err_SEQRCS, marker=:o, label="SE-QRCS Sampling", yticks=-0.1:0.1:1.01)
+    plot!(samples, err_SEQRCS, marker=:o, label="SE-QRCS Sampling", yticks=-0.5:0.1:1.01)
     plot!(samples, err_leverage, marker=:o, label="Leverage Score Sampling")
     plot!(legendtitle="ALS Method",
     legendtitlefontsize=8,
@@ -209,7 +212,7 @@ for rk in [100,110,]
     xlabel!("Number of Samples")
     ylabel!("Distribution CPD Fit")
     title!("Modified Synthetic tensor test: \n Rank $rk")
-    plot!(legend=:topleft)
+    plot!(legend=:left, yticks=-0.5:0.1:1.01, yrange=[-0.5, 1.0])
     savefig("$(@__DIR__)/../../plots/synthetic_tensor/distribution_rank_$(rk)_modified_test_$(n).pdf")
 end
 
