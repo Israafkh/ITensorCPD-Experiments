@@ -22,6 +22,23 @@ function check_fit(als, cpd)
     return check_fit(als, cpd.factors, ITensorCPD.cp_rank(cpd), cpd.λ, 1)
 end
 
+function check_fit(target::ITensor, cpd)
+    cprank = ITensorCPD.cp_rank(cpd)
+    factors = cpd.factors
+    λ = cpd.λ
+    fact = 1
+    inner_prod = (had_contract([target, dag.(factors)...], cprank) * dag(λ))[]
+    partial_gram = [fact * dag(prime(fact; tags=tags(cprank))) for fact in factors];
+    fact_square = ITensorCPD.norm_factors(partial_gram, λ)
+    ref_norm = sqrt(sum(target .^2))
+    normResidual =
+        sqrt(abs(ref_norm * ref_norm + fact_square - 2 * abs(inner_prod)))
+    fit = 1.0 - normResidual / norm(ref_norm)
+    println("CPD rank\tMode\tCPD Accuracy")
+    println("$(dim(cprank))\t\t$(fact)\t$(fit)")
+    return fit
+end
+
 function check_fit(als, factors, cprank, λ, fact)
     target = als.target
     inner_prod = (had_contract([target, dag.(factors)...], cprank) * dag(λ))[]
@@ -34,6 +51,26 @@ function check_fit(als, factors, cprank, λ, fact)
     println("CPD rank\tMode\tCPD Accuracy")
     println("$(dim(cprank))\t\t$(fact)\t$(fit)")
     return fit
+end
+
+get_tproj(::ITensorCPD.PivotBasedSolvers, als, factors, cp, rank, fact) = als.additional_items[:target_transform][fact]
+get_tproj(::ITensorCPD.LevScoreSampled, als, factors, cp, rank, fact) = ITensorCPD.matricize_tensor(als.mttkrp_alg, als, factors, cp, rank, fact)
+
+get_krp(::ITensorCPD.PivotBasedSolvers, als, factors, cp, fact, r) = ITensorCPD.had_contract(factors[fact], cp[], r) * ITensorCPD.pivot_hadamard((factors[1:end .!= fact]), r, als.additional_items[:projects_tensors][fact])
+function get_krp(::ITensorCPD.LevScoreSampled, als, factors, cp, fact, rank) 
+    return ITensorCPD.had_contract(factors[fact], cp[], rank) * ITensorCPD.project_krp(als.mttkrp_alg, als, factors[1:end .!= fact], cp, rank, fact)
+end
+
+function check_appx_fit(als, cpd)
+    fact = 1
+    r = ITensorCPD.cp_rank(cpd)
+    factors = cpd.factors
+
+       
+    krpproj = get_krp(als.mttkrp_alg, als, factors, cpd, fact,r)
+    tproj =  get_tproj(als.mttkrp_alg, als, fact, cpd, r, fact)
+
+    return 1 - norm(tproj - krpproj) / norm(tproj)
 end
 
 # f(A) = || T - [[A, B, C]] ||^2
