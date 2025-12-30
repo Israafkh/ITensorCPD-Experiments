@@ -13,20 +13,20 @@ algNormal = ITensorCPD.direct()
 check_exact = ITensorCPD.FitCheck(1e-5, 100, ncoil)
 ## Create a random initial guess with rank 20
 init_guess = ITensorCPD.random_CPD(coil, 20; rng);
-opt = ITensorCPD.als_optimize(coil, init_guess; verbose=true, alg=algNormal, check=check_exact);
-check_exact.final_fit
+# opt = ITensorCPD.als_optimize(coil, init_guess; verbose=true, alg=algNormal, check=check_exact);
+# check_exact.final_fit
 
 ## Compute a sampled CP-ALS using random single samples of the khatri-rao product.
-check = ITensorCPD.FitCheck(1e-3, 50, ncoil);
+check = ITensorCPD.CPDiffCheck(1e-2, 100);
 ## Using 100 samples
 nsamples = 1000
 als_list = [
-    ITensorCPD.compute_als(coil, init_guess; alg=alg, check=ITensorCPD.CPDiffCheck(1e-2, 100), trunc_tol = 0.1, shuffle_pivots=shuffle)
+    ITensorCPD.compute_als(coil, init_guess; alg=alg, check, trunc_tol = 0.1, shuffle_pivots=shuffle)
     for (alg, shuffle) in zip([
         ITensorCPD.QRPivProjected(nsamples),
         ITensorCPD.QRPivProjected(nsamples),
-        ITensorCPD.SEQRCSPivProjected(1,1000,(1,2,3,4),(200,50,50,3)),
-        ITensorCPD.SEQRCSPivProjected(1,1000,(1,2,3,4),(200,50,50,3)),
+        ITensorCPD.SEQRCSPivProjected(1,1000,(1,2,3,4),(100,1,1,1)),
+        ITensorCPD.SEQRCSPivProjected(1,1000,(1,2,3,4),(100,1,1,1)),
         ITensorCPD.LevScoreSampled(nsamples),
     ], 
     [true,false,true,false,true])
@@ -45,8 +45,9 @@ for rk in rks
     r = Index(rk, "CP")
     guess = ITensorCPD.random_CPD(coil, r; rng)
     for ( als, fit) in zip(als_list, fits)
-        opt = ITensorCPD.optimize(guess, als; verbose=true);
-        push!(fit, check_fit(als, opt))
+        @time opt = ITensorCPD.optimize(guess, als; verbose=true);
+        push!(fit, check_fit(coil, opt))
+        GC.gc()
     end
 end
 
@@ -90,25 +91,26 @@ rk = 20
 r = Index(rk, "CP")
 guess = ITensorCPD.random_CPD(coil, r; rng)
 als_list = [
-    ITensorCPD.compute_als(coil, init_guess; alg=alg, check=ITensorCPD.CPDiffCheck(1e-2, 100), trunc_tol = 0.1, shuffle_pivots=shuffle)
+    ITensorCPD.compute_als(coil, init_guess; alg=alg, check, trunc_tol = 0.1, shuffle_pivots=shuffle)
     for (alg, shuffle) in zip([
         ITensorCPD.QRPivProjected(nsamples),
         ITensorCPD.QRPivProjected(nsamples),
-        ITensorCPD.SEQRCSPivProjected(1,1000,(1,2,3,4),(200,50,50,3)),
-        ITensorCPD.SEQRCSPivProjected(1,1000,(1,2,3,4),(200,50,50,3)),
+        ITensorCPD.SEQRCSPivProjected(1,1000,(1,2,3,4),(100,1,1,1)),
+        ITensorCPD.SEQRCSPivProjected(1,1000,(1,2,3,4),(100,1,1,1)),
         ITensorCPD.LevScoreSampled(nsamples),
     ], 
     [true,false,true,false,true])
     ];
 
 for nsamples in samps
-    als_list[1] = ITensorCPD.update_samples(als_list[1], nsamples)
-    als_list[2] = ITensorCPD.update_samples(als_list[2], nsamples)
-    als_list[3] = ITensorCPD.update_samples(als_list[3], nsamples)
-    als_list[4] = ITensorCPD.update_samples(als_list[4], nsamples)
+    als_list[1] = ITensorCPD.update_samples(coil, als_list[1], nsamples);
+    als_list[2] = ITensorCPD.update_samples(coil, als_list[2], nsamples);
+    als_list[3] = ITensorCPD.update_samples(coil, als_list[3], nsamples);
+    als_list[4] = ITensorCPD.update_samples(coil, als_list[4], nsamples);
+    als_list[5] = ITensorCPD.compute_als(coil, init_guess; alg=ITensorCPD.LevScoreSampled(nsamples), check =ITensorCPD.CPDiffCheck(1e-2, 100) )
     for ( als, fit) in zip(als_list, fits)
         opt = ITensorCPD.optimize(guess, als; verbose=true);
-        push!(fit, check_fit(als, opt))
+        push!(fit, check_fit(coil, opt))
     end
 end
 
