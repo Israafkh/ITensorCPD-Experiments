@@ -15,13 +15,13 @@ cp_seqrcs = []
 cp_qr = []
 cp_lev = []
 cp_full = []
-for v in [5]
+#for v in [5]
     se = []
     can = []
     lev = []
     full = []
-    for atom in [wat2, wat3, wat4, wat5, wat6]
-    mol = pyscf.gto.M(; atom=wat5, basis="cc-pvtz", charge=0, spin=0, verbose=3)
+    #for atom in [wat2, wat3, wat4, wat5, wat6]
+    mol = pyscf.gto.M(; atom=wat10, basis="cc-pvtz", charge=0, spin=0, verbose=3)
     auxbasis = "cc-pvtz-ri"
     mol.build()
     mf = pyscf.scf.RHF(mol).density_fit()
@@ -54,9 +54,8 @@ for v in [5]
     aoI = Index(naux, "aux")
     sz_df = size(df_int)
     Bleft = itensor(df_int,  Index(sz_df[1]), Index(sz_df[2]), aoI)
-    Bleft = noprime(itensor(mf.mo_coeff, ind(Bleft, 2), ind(Bleft, 2)') * (itensor(mf.mo_coeff, ind(Bleft, 1), ind(Bleft,1)') * Bleft))
-    Bright = itensor(deepcopy(array(Bleft)), Index(sz_df[1]), Index(sz_df[2]), aoI')
     M = itensor(invMetric, aoI, aoI')
+    Mhalf = itensor(halfMInv, aoI, aoI')
 
     # Mhalf = itensor(halfMInv', aoI, aoI')
     # norm(Bleft * Mhalf * (Mhalf * Bright);  - Bleft * M * Bright)
@@ -64,87 +63,98 @@ for v in [5]
     ## So the idea is: can we leverage this QR method to quickly construct some MPS
     ## Then we can naively transform the MPS into a 
 
-    #dferi = Bleft * M * Bright
+    # target = Bleft * Mhalf
+    target = Bleft
     
-    α = 2.0
+    α = 3.0
     r = Index(Int(floor(α * naux)), "CP rank")
     rankdim = dim(r)
-    cpd = ITensorCPD.random_CPD(Bleft, r;);
+    cpd = ITensorCPD.random_CPD(target, r;);
 
-    dferi_norm = norm(Bleft * M * Bright);
     linf = nothing
-    #if v == 5
-        alg = ITensorCPD.direct()
-        als = ITensorCPD.compute_als(Bleft, cpd; alg, check=ITensorCPD.FitCheck(1e-3, 20, norm(Bleft)));
-        optALS = ITensorCPD.optimize(cpd, als; verbose=true);
-        
-        BleftAppx = ITensorCPD.had_contract(optALS[1], optALS[2], r) * ITensorCPD.had_contract(optALS[3], optALS[], r)
-        BrightAppx = itensor(data(BleftAppx), inds(Bright));
-        diff = Bleft * M * Bright - BleftAppx * M * BrightAppx
-        linf = maximum(diff)
-        push!(full, 1 -norm(Bleft * M * Bright - BleftAppx * M * BrightAppx) / dferi_norm)
-    end
 
     ##Run the same thing as above but with pivoted cheaper scheme
     # alg = ITensorCPD.SEQRCSPivProjected(1, Int(floor(6 * dim(r))), (1,2,3), (20,20,30))
     ## PRobably need to preserve symmetry in the shuffling pivots.
     linf_qr = []
     linf_seqr = []
+    check=ITensorCPD.CPDiffCheck(1e-3, 50)
     #for v in [3,4,5,6,7]
+    v = 30
     pivdim = (Int(floor(v * dim(r))))
 
     @show pivdim
     @show pivdim / (nao * naux)
     @show pivdim / (nao * nao)
-    @show pivdim / (nvirt * naux)
-    @show pivdim / (nocc * nvirt)
+    fitsQRAppx = Vector{Float64}()
+    fitsQRTrue = Vector{Float64}()
 
-    #samples = (pivdim, pivdim, Int(floor(0.9 * nocc * nvirt)))
-    samples = (pivdim, pivdim, pivdim)
-
-    alg = ITensorCPD.QRPivProjected(1, samples);
-    als = ITensorCPD.compute_als(Bleft, cpd; alg, check=ITensorCPD.CPDiffCheck(1e-3, 50), shuffle_pivots=true);
-    cpdRand = ITensorCPD.optimize(cpd, als; verbose=true);
-
-    BleftAppx = ITensorCPD.had_contract(cpdRand[1], cpdRand[2], r) * ITensorCPD.had_contract(cpdRand[3], cpdRand[], r)
-    BrightAppx = itensor(data(BleftAppx), inds(Bright));
-    1 -norm(Bleft * M * Bright - BleftAppx * M * BrightAppx) / dferi_norm
-
-    push!(linf_qr, maximum(Bleft * M * Bright - BleftAppx * M * BrightAppx))
-    push!(can, 1 -norm(Bleft * M * Bright - BleftAppx * M * BrightAppx) / dferi_norm)
-
-
-    alg = ITensorCPD.SEQRCSPivProjected(1, samples,
-             (1,2,3), (100,100,100));
-    als = ITensorCPD.compute_als(Bleft, cpd; alg, 
-        check=ITensorCPD.CPDiffCheck(5e-5, 1000), shuffle_pivots=true);
-    ## This forces the pivots of the first two modes to be the same, hopefully correcting for the symmetry of the problem.
-    cpdRand = ITensorCPD.optimize(cpd, als; verbose=true);
-
-    BleftAppx = ITensorCPD.had_contract(cpdRand[1], cpdRand[2], r) * ITensorCPD.had_contract(cpdRand[3], cpdRand[], r)
-    BrightAppx = itensor(data(BleftAppx), inds(Bright));
-
-    push!(linf_seqr, maximum(Bleft * M * Bright - BleftAppx * M * BrightAppx))
-    push!(se, 1 -norm(Bleft * M * Bright - BleftAppx * M * BrightAppx) / dferi_norm)
-
-    alg = ITensorCPD.LevScoreSampled(samples);
-    als = ITensorCPD.compute_als(Bleft, cpd; alg, 
-    check=ITensorCPD.CPDiffCheck(1e-3, 50));
-    ## This forces the pivots of the first two modes to be the same, hopefully correcting for the symmetry of the problem.
-
-    cpdRand = ITensorCPD.optimize(cpd, als; verbose=true);
-
-    BleftAppx = ITensorCPD.had_contract(cpdRand[1], cpdRand[2], r) * ITensorCPD.had_contract(cpdRand[3], cpdRand[], r)
-    BrightAppx = itensor(data(BleftAppx), inds(Bright));
-
-    push!(lev, 1 -norm(Bleft * M * Bright - BleftAppx * M * BrightAppx) / dferi_norm)
+    alg = ITensorCPD.SEQRCSPivProjected(1, pivdim, (1,2,3), (200,));
+    @time als = ITensorCPD.compute_als(target, cpd; alg, check);
+    samples = [5, 10, 15, 20, 25, 30]
+    for v in [5, 10, 15, 20, 25, 30]
+        @time als = ITensorCPD.update_samples(target, als, (Int(floor(v/α * dim(r)))); reshuffle=true);
+        @time scpdRand = ITensorCPD.optimize(cpd, als; verbose=true);
+        #push!(fitsQRAppx, check_appx_fit(als, scpdRand))
+        push!(fitsQRTrue, check_fit(target, scpdRand))
     end
-    push!(cp_qr, can)
-    push!(cp_seqrcs, se)
-    push!(cp_lev, lev)
-    push!(cp_full, full)
-# end
+    
+    fitsRandTrue = Vector{Float64}()
+    for v in samples
+        alsLev = ITensorCPD.compute_als(target, cpd; alg = ITensorCPD.LevScoreSampled((Int(floor(v/α * dim(r))))), check, normal=true);
+        @time scpdRand = ITensorCPD.optimize(cpd, alsLev; verbose=true);
+        push!(fitsRandTrue, check_fit(target, scpdRand))
+    end
 
+    using LaTeXStrings
+    ss =[(Int(floor(v/α * dim(r)))) for v in samples]
+    plot(ss, fitsQRTrue, label="SE-QRCS Sampling")
+    plot!(ss, fitsRandTrue, label ="Leverage Score Sampling")
+    name = α == 1 ? L"I_{\mathrm{aux}}" : α == 2 ? L"2 I_{\mathrm{aux}}" : L"3I_{\mathrm{aux}}"
+    plot!(title="Decomposing "*L"\mathcal{B}" * "\n" * L"R=" * name,
+    yrange=[0.2,1], yticks=0.2:0.1:1,
+    ylabel="CPD Fit",
+    xlabel="Number of Samples",
+    legend=:bottomright)
+    savefig("$(@__DIR__)/../plots/chem_rank_$(α).pdf")
+
+
+    α = 1.0
+    r = Index(Int(floor(α * naux)), "CP rank")
+    rankdim = dim(r)
+    cpd = ITensorCPD.random_CPD(target, r;);
+
+    fitsDiffK = Vector{Vector{Float64}}([Vector{Float64}(), Vector{Float64}(), Vector{Float64}()])
+
+    v = 30
+    for k_sk in [100,200,300,400]
+        alg = ITensorCPD.SEQRCSPivProjected(1, pivdim, (1,2,3), (k_sk,));
+        @time als = ITensorCPD.compute_als(target, cpd; alg, check);
+    
+        als = ITensorCPD.update_samples(target, als, (Int(floor(v/α * dim(r)))); reshuffle=true);
+        for α in 1:3
+            r = Index(Int(floor(α * naux)), "CP rank")
+            cpd = ITensorCPD.random_CPD(target, r;);
+            @time scpdRand = ITensorCPD.optimize(cpd, als; verbose=true);
+            push!(fitsDiffK[α], check_fit(target, scpdRand))
+        end
+    end
+    nsamples = Int(floor(v/α * dim(r))) # 126900, α = 1 v = 30
+    xs = [100, 200, 300, 400]
+    plot(xs, fitsDiffK[1], label=L"I_{\mathrm{aux}}")
+    plot!(xs, fitsDiffK[2], label=L"2I_{\mathrm{aux}}")
+    plot!(xs, fitsDiffK[3], label=L"3I_{\mathrm{aux}}")
+    name = α == 1 ? L"I_{\mathrm{aux}}" : α == 2 ? L"2 I_{\mathrm{aux}}" : L"3I_{\mathrm{aux}}"
+    plot!(title="Effect of SE-QRCS CountSketch on \nCPD approximation of " * L"\mathcal{B}",
+    yrange=[0.85,1.01],
+    ylabel="CPD Fit",
+    xlabel="Count Sketch Non-Zeros per Column",
+    legend=:bottomright)
+    savefig("$(@__DIR__)/../plots/chemistry/convergence_with_sketch_samples_$(nsamples).pdf")
+
+    end
+
+target = Bleft * Mhalf * prime(Bleft)
 using Plots
 #plot(cp_full.* 100, label="True CPD")
 plot(cp_full.* 100, label="Exact CPD")
@@ -199,3 +209,24 @@ plot!((ranks .* 3.5) ./ (occs .* virs))
     # [700, 1440, 1920,2375, 2730]
     # [2.482269503546099,3.404255319148936,3.404255319148936,3.368794326241135,3.226950354609929]
     # [0.9969276893868366,0.9969106362083243,0.9969293666035572,0.9968693941509581,0.9968646126337909]
+
+
+    using ITensors, LinearAlgebra
+    a = randn(50, 50)
+    b = randn(30,30)
+
+    ua,_,_ = svd(a);
+    ub,_,_ = svd(b);
+    
+    Ua = itensor(ua, Index.(size(ua)))
+    Ub = itensor(ub, Index.(size(ub)))
+
+    AB1 = random_itensor(ind(Ua,2), ind(Ub,1))
+    AB2 = random_itensor(ind(Ua,2), ind(Ub,1))
+
+
+    m1 = Ua * hadamard_product(AB1, AB2) * Ub
+    m2 = hadamard_product(Ua * AB1 * Ub, Ua * AB2 * Ub)
+
+    array(m1)
+    array(m2)
