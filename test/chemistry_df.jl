@@ -66,7 +66,7 @@ cp_full = []
     # target = Bleft * Mhalf
     target = Bleft
     
-    α = 3.0
+    α = 1.0
     r = Index(Int(floor(α * naux)), "CP rank")
     rankdim = dim(r)
     cpd = ITensorCPD.random_CPD(target, r;);
@@ -86,37 +86,47 @@ cp_full = []
     @show pivdim
     @show pivdim / (nao * naux)
     @show pivdim / (nao * nao)
-    fitsQRAppx = Vector{Float64}()
     fitsQRTrue = Vector{Float64}()
 
     alg = ITensorCPD.SEQRCSPivProjected(1, pivdim, (1,2,3), (200,));
     @time als = ITensorCPD.compute_als(target, cpd; alg, check);
-    samples = [5, 10, 15, 20, 25, 30]
-    for v in [5, 10, 15, 20, 25, 30]
-        @time als = ITensorCPD.update_samples(target, als, (Int(floor(v/α * dim(r)))); reshuffle=true);
-        @time scpdRand = ITensorCPD.optimize(cpd, als; verbose=true);
-        #push!(fitsQRAppx, check_appx_fit(als, scpdRand))
-        push!(fitsQRTrue, check_fit(target, scpdRand))
-    end
+    rng = RandomDevice()
+    fitsRandTrue = Vector{Vector{Float64}}()
+    fitsQRTrue = Vector{Vector{Float64}}()
+    samples = [5, 10, 15, 20]
+    for α in [2]
+        push!(fitsRandTrue, Vector{Float64}())
+        push!(fitsQRTrue, Vector{Float64}())
+        r = Index(Int(floor(α * naux)), "CP rank")
+        cpd = ITensorCPD.random_CPD(target, r; rng);
+        for v in samples
+            @time als = ITensorCPD.update_samples(target, als, (Int(floor(v * dim(r)))); reshuffle=true);
+            @time scpdRand = ITensorCPD.optimize(cpd, als; verbose=true);
+            #push!(fitsQRAppx, check_appx_fit(als, scpdRand))
+            push!(fitsQRTrue[α], check_fit(target, scpdRand))
+        end
+        
+        for v in samples
+            alsLev = ITensorCPD.compute_als(target, cpd; alg = ITensorCPD.LevScoreSampled((Int(floor(v * dim(r))))), check, normal=true);
+            @time scpdRand = ITensorCPD.optimize(cpd, alsLev; verbose=true);
+            push!(fitsRandTrue[α], check_fit(target, scpdRand))
+        end
+
     
-    fitsRandTrue = Vector{Float64}()
-    for v in samples
-        alsLev = ITensorCPD.compute_als(target, cpd; alg = ITensorCPD.LevScoreSampled((Int(floor(v/α * dim(r))))), check, normal=true);
-        @time scpdRand = ITensorCPD.optimize(cpd, alsLev; verbose=true);
-        push!(fitsRandTrue, check_fit(target, scpdRand))
     end
 
     using LaTeXStrings
-    ss =[(Int(floor(v/α * dim(r)))) for v in samples]
-    plot(ss, fitsQRTrue, label="SE-QRCS Sampling")
-    plot!(ss, fitsRandTrue, label ="Leverage Score Sampling")
+    α = 3
+    ss =[(Int(floor(v * dim(r)))) for v in samples]
+    plot(ss, fitsQRTrue[α], label="SE-QRCS Sampling")
+    plot!(ss, fitsRandTrue[α], label ="Leverage Score Sampling")
     name = α == 1 ? L"I_{\mathrm{aux}}" : α == 2 ? L"2 I_{\mathrm{aux}}" : L"3I_{\mathrm{aux}}"
-    plot!(title="Decomposing "*L"\mathcal{B}" * "\n" * L"R=" * name,
+    plot!(title="CPD of "*L"\mathcal{B}" * "\n" * L"R=" * name,
     yrange=[0.2,1], yticks=0.2:0.1:1,
     ylabel="CPD Fit",
     xlabel="Number of Samples",
     legend=:bottomright)
-    savefig("$(@__DIR__)/../plots/chem_rank_$(α).pdf")
+    savefig("$(@__DIR__)/../plots/h2o10_chem_rank_$(α).pdf")
 
 
     α = 1.0
@@ -151,82 +161,3 @@ cp_full = []
     xlabel="Count Sketch Non-Zeros per Column",
     legend=:bottomright)
     savefig("$(@__DIR__)/../plots/chemistry/convergence_with_sketch_samples_$(nsamples).pdf")
-
-    end
-
-target = Bleft * Mhalf * prime(Bleft)
-using Plots
-#plot(cp_full.* 100, label="True CPD")
-plot(cp_full.* 100, label="Exact CPD")
-plot!(abs.(cp_qr[1].* 100), label="Full QR CPDnpiv = 5 * R")
-plot!(abs.(cp_qr[2].* 100), label="Full QR CPDnpiv = 6 * R")
-plot!(abs.(cp_qr[3].* 100), label="Full QR CPDnpiv = 7 * R")
-plot!(abs.(cp_qr[4].* 100), label="Full QR CPDnpiv = 8 * R")
-
-plot(cp_full.* 100, label="Exact CPD")
-#plot!(cp_seqrcs[1].* 100, label="Randomized QR CPD npiv = 5 * R")
-#plot!(cp_seqrcs[2].* 100, label="Randomized QR CPD npiv = 6 * R")
-plot!(cp_seqrcs[3].* 100, label="Randomized QR CPD npiv = 7 * R")
-plot!(cp_seqrcs[4].* 100, label="Randomized QR CPD npiv = 8 * R")
-plot!(title="Accuracy of CPD of Gijab\nR=2 * naux", 
-xlabel="Number of Water Molecules",
-yaxis="L2 Percent Accuracy in Gijab")
-
-plot(cp_full[1].* 100, label="Exact CPD")
-# plot!(cp_lev[1] .* 100, label="Leverage Score Sampling Method npiv = 5 * R")
-# plot!(cp_lev[2] .* 100, label="Leverage Score Sampling Method npiv = 6 * R")
-plot!(cp_lev[3] .* 100, label="Leverage Score Sampling Method npiv = 7 * R")
-plot!(cp_lev[4] .* 100, label="Leverage Score Sampling Method npiv = 8 * R")
-plot!(title="Accuracy of CPD of Gijab\nR=2 * naux", 
-xlabel="Number of Water Molecules",
-yaxis="L2 Percent Accuracy in Gijab")
-# savefig("cpd-thc.pdf")
-
-auxs = [282, 423, 564,705]
-occs = [10,15,20,25]
-virs = [106, 159, 212, 265]
-ranks = 2 .* auxs
-plot((ranks .* 7) ./ (auxs .* occs ))
-plot!((ranks .* 7) ./ (auxs .* virs ))
-plot!((ranks .* 3.5) ./ (occs .* virs))
-
-
-### MPS idea
-    # mps = MPS(Bleft, inds(Bleft); cutoff=1e-5)
-    # prod(linkdims(mps)) - 8 * naux
-    # prod(linkdims(mps)) / nvirt
-    # prod(linkdims(mps)) / naux
-    # 1 - norm(contract(mps) - Bleft) / norm(Bleft)
-
-    # itn = ITensorNetwork([mps...])
-    # cpdRand = ITensorCPD.decompose(itn,  nvirt; check=ITensorCPD.FitCheck(1e-5, 100, norm(contract(mps))), verbose=true);
-    # contract([mps...]) - Bleft
-    # norm(contract(mps) - ITensorCPD.had_contract(cpdRand[1], cpdRand[2], r) * ITensorCPD.had_contract(cpdRand[3], cpdRand[], r)) / norm(contract(mps))
-    # BleftAppx = ITensorCPD.had_contract(cpdRand[1], cpdRand[2], r) * ITensorCPD.had_contract(cpdRand[3], cpdRand[], r)
-    # BrightAppx = itensor(data(BleftAppx), inds(Bright));
-    # norm(Bleft * M * Bright - BleftAppx * M * BrightAppx) / norm(Bleft * M * Bright)
-
-    # [700, 1440, 1920,2375, 2730]
-    # [2.482269503546099,3.404255319148936,3.404255319148936,3.368794326241135,3.226950354609929]
-    # [0.9969276893868366,0.9969106362083243,0.9969293666035572,0.9968693941509581,0.9968646126337909]
-
-
-    using ITensors, LinearAlgebra
-    a = randn(50, 50)
-    b = randn(30,30)
-
-    ua,_,_ = svd(a);
-    ub,_,_ = svd(b);
-    
-    Ua = itensor(ua, Index.(size(ua)))
-    Ub = itensor(ub, Index.(size(ub)))
-
-    AB1 = random_itensor(ind(Ua,2), ind(Ub,1))
-    AB2 = random_itensor(ind(Ua,2), ind(Ub,1))
-
-
-    m1 = Ua * hadamard_product(AB1, AB2) * Ub
-    m2 = hadamard_product(Ua * AB1 * Ub, Ua * AB2 * Ub)
-
-    array(m1)
-    array(m2)
