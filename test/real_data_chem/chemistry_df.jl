@@ -7,7 +7,7 @@ include("../test_env.jl")
 
 pyscf = pyimport("pyscf")
 scipy = pyimport("scipy")
-use_threads_als = false
+use_threads_als = true
 ## Need to pip install pyscf
 
 include("mols.jl")
@@ -90,25 +90,26 @@ fitsRandTrue = Vector{Vector{Float64}}()
 timesQR = Vector{Vector{Float64}}()
 fitsQRTrue = Vector{Vector{Float64}}()
 timesRand = Vector{Vector{Float64}}()
+for lst in [fitsRandTrue,timesQR, fitsQRTrue, timesRand]
+    for i in 1:3
+    push!(lst, Vector{Float64}())
+    end
+end
 samples = [3, 5, 10, 15, 20]
-for α in [1]
+for α in [2]
     r = Index(Int(floor(α * naux)), "CP rank")
     cpd = ITensorCPD.random_CPD(target, r; rng);
 
-    push!(fitsQRTrue, Vector{Float64}())
-    push!(timesQR, Vector{Float64}())
     for v in samples
         @time als = ITensorCPD.update_samples(target, als, (Int(floor(v * dim(r)))); reshuffle=true);
         push!(timesQR[α], @elapsed scpdRand = ITensorCPD.optimize(cpd, als; verbose=true));
-        # push!(fitsQRTrue[α], check_fit(target, scpdRand))
+        push!(fitsQRTrue[α], check_fit(target, scpdRand))
     end
     
-    push!(fitsRandTrue, Vector{Float64}())
-    push!(timesRand, Vector{Float64}())
     for v in samples
         @time alsLev = ITensorCPD.compute_als(target, cpd; alg = ITensorCPD.LevScoreSampled((Int(floor(v * dim(r))))), check, normal=true);
         push!(timesRand[α], @elapsed scpdRand = ITensorCPD.optimize(cpd, alsLev; verbose=true));
-        # push!(fitsRandTrue[α], check_fit(target, scpdRand))
+        push!(fitsRandTrue[α], check_fit(target, scpdRand))
     end
 end
 
@@ -125,17 +126,8 @@ xlabel="Number of Samples",
 legend=:bottomright)
 savefig("$(@__DIR__)/../../plots/chemistry/h2o10_chem_rank_$(α).pdf")
 
-# seqrcs_time = 81.678826
-#  timesQR= [
-#  [25.898743583, 40.021015792, 60.117298541, 88.53568, 108.820786959],
-#  [164.356564666, 324.803621875, 428.514566, 558.596715125, 715.428249792],
-#  [445.831213584, 804.744762875, 1030.511452042, 1386.774814708, 1891.55275975]]
-#  timesRand = [
-#     [39.766620791, 56.467346959, 90.883510083, 129.311407667, 166.711995542],
-#  [158.803411791, 224.592437625, 415.531635709, 660.922614833, 990.561291042],
-#  [403.64460675, 584.121666167, 1267.38801025, 1805.262470084, 2326.728435291]
-#  ]
-α = 3
+seqrcs_time = 81.678826
+α = 2
 r = Index(Int(floor(α * naux)), "CP rank")
 ss =[(Int(floor(v * dim(r)))) for v in samples]
 name = α == 1 ? L"I_{\mathrm{aux}}" : α == 2 ? L"2 I_{\mathrm{aux}}" : L"3I_{\mathrm{aux}}"
