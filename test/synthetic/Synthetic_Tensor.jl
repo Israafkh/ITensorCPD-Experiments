@@ -11,6 +11,7 @@ cp = ITensorCPD.random_CPD(T, r; rng)
 T = ITensorCPD.reconstruct(cp)
 T1 =reshape(array(T, (i, j, k)), (dim(i), dim(j)*dim(k)))
 T1[:,1:40].*=100
+T1 = T1[:,randperm(dim(j) * dim(k))]
 T= itensor(T1,i,j,k)
 verbose= true
 #samples = [400,500,600,800,1000,1200,1500,2000]
@@ -20,6 +21,7 @@ check_direct = ITensorCPD.FitCheck(1e-5, 50,sqrt(sum(T.^2)) )
 SEQRCS_error_mat = Matrix{Float64}(undef, 20, length(samples))
 lev_error_mat = Matrix{Float64}(undef, 20, length(samples))
 rng=RandomDevice()
+cp_T = nothing
 for rk in [100,110,]    
     r = Index(rk, "CP_rank")
     err_SEQRCS = Vector{Float64}()
@@ -72,7 +74,7 @@ for rk in [100,110,]
     direct_error = check_fit(alsNormal, opt_T.factors, r, opt_T.λ, 1)
 
     plt2 = plot(samples, direct_error .* ones(length(samples)), marker=:o, label="Normal Equations")
-    plot!(samples, err_SEQRCS, marker=:o, label="SE-QRCS Sampling", yticks=-0.5:0.1:1.01)
+    plot!(samples, err_SEQRCS, marker=:o, label="SE-QRCS Sampling", yrange=[-0.5,1.01], yticks=-0.5:0.1:1.01)
     plot!(samples, err_leverage, marker=:o, label="Leverage Score Sampling")
     plot!(legendtitle="ALS Method",
     legendtitlefontsize=8,
