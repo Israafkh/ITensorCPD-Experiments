@@ -30,6 +30,7 @@ for elt in (Float32,Float64), c in [0.2, 0.8]
             for q = 1:nrepeats
                 alg_QR =ITensorCPD.SEQRCSPivProjected(1, s, (1,2,3),(30,30,30))
                 alsQR = ITensorCPD.compute_als(T,cp_T;alg=alg_QR, check =check_piv);
+                # alsQR.target .= T
                 # println("Start SEQRCSPIVProjected with random start")
                 int_opt_T =ITensorCPD.optimize(cp_T,alsQR;verbose);
                 push!(SEQRCS_error_vect,check_fit(alsQR, int_opt_T.factors, r, int_opt_T.λ, 1))
