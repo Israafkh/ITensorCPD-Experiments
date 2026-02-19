@@ -51,25 +51,34 @@ for rk in rks
     end
 end
 
-plot(rks, fitQR, label="QR")
-plot!(rks, fitSE, label="SE-QRCS")
-plot!(rks, fitRand, label="Leverage Scores")
+lw = 5
+plot(rks, fitRand, label="Leverage Scores"; lw)
+plot!(rks, fitQR, label="QR"; lw)
+plot!(rks, fitSE, label="SE-QRCS"; lw)
 plot!(legend=:bottomleft,
 title="20 Image COIL data, 1000 Samples", 
 xlabel="Rank", 
 legendtitle="Sampling Method",
-legendtitlefontsize=8,
+legendtitlefontsize=10,
+legendfontsize=10,
+titlefontsize=15,
+labelfontsize=15,
+tickfontsize=12,
 ylabel="Fit")
 savefig("$(@__DIR__)/../../plots/coil/shuffle_rank_scan_samples_$(nsamples).pdf")
 
-plot(rks, fitQRNS, label="QR")
-plot!(rks, fitSENS, label="SE-QRCS")
-plot!(rks, fitRand, label="Leverage Scores")
-plot!(legend=:bottomright,
+plot(rks, fitRand, label="Leverage Scores";lw)
+plot!(rks, fitQRNS, label="QR"; lw)
+plot!(rks, fitSENS, label="SE-QRCS";lw)
+plot!(legend=:bottomleft,
 title="20 Image COIL data, 1000 Samples", 
 xlabel="Rank", 
 legendtitle="Sampling Method",
-legendtitlefontsize=8,
+legendtitlefontsize=10,
+legendfontsize=10,
+titlefontsize=15,
+labelfontsize=15,
+tickfontsize=12,
 ylabel="Fit")
 savefig("$(@__DIR__)/../../plots/coil/no_shuffle_rank_scan_samples_$(nsamples).pdf")
 
@@ -114,24 +123,32 @@ for nsamples in samps
     end
 end
 
-plot(samps, fitQR, label="QR")
-plot!(samps, fitSE, label="SE-QRCS")
-plot!(samps, fitRand, label="Leverage Scores")
+plot(samps, fitRand, label="Leverage Scores"; lw)
+plot!(samps, fitQR, label="QR"; lw)
+plot!(samps, fitSE, label="SE-QRCS"; lw)
 plot!(legend=:bottomright,
 title="20 Image COIL data, CP Rank: 20", 
 xlabel="Samples", 
 legendtitle="Sampling Method",
-legendtitlefontsize=8,
+legendtitlefontsize=10,
+legendfontsize=10,
+titlefontsize=15,
+labelfontsize=15,
+tickfontsize=12,
 ylabel="Fit")
 savefig("$(@__DIR__)/../../plots/coil/shuffle_sample_scan_rank_$(rk).pdf")
 
-plot(samps, fitQRNS, label="QR")
-plot!(samps, fitSENS, label="SE-QRCS")
-plot!(samps, fitRand, label="Leverage Scores")
+plot(samps, fitRand, label="Leverage Scores"; lw)
+plot!(samps, fitQRNS, label="QR"; lw)
+plot!(samps, fitSENS, label="SE-QRCS"; lw)
 plot!(legend=:bottomright,
 title="20 Image COIL data, CP Rank: 20", 
 xlabel="Samples", 
 legendtitle="Sampling Method",
-legendtitlefontsize=8,
+legendtitlefontsize=10,
+legendfontsize=10,
+titlefontsize=15,
+labelfontsize=15,
+tickfontsize=12,
 ylabel="Fit")
 savefig("$(@__DIR__)/../../plots/coil/no_shuffle_sample_scan_rank_$(rk).pdf")
