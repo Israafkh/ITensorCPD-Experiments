@@ -113,16 +113,48 @@ for α in [2]
     end
 end
 
-α = 1
+fitsQRTrue = [
+ [-0.21000985798983862, 0.4244296818634966, 0.7184174262793868, 0.8046191981622658, 0.8480224112768372],
+ [0.4751821580031419, 0.734202385333546, 0.8825731264572098, 0.930355195122174, 0.9524485107542174],
+ [0.6687602942996482, 0.8388222616205944, 0.9366671493286072, 0.9653527937496582, 0.9772538960015008],
+ ]
+
+ fitsRandTrue = [
+ [-0.27915892463014114, 0.18933457130872666, 0.536636646858154, 0.6783533186673489, 0.7819379713248416],
+ [0.21125331314242346, 0.5402435541247881, 0.8276753661060912, 0.9251112136931483, 0.959677935424747],
+ [0.426965194751755, 0.7386937555597015, 0.9303693380850508, 0.9709197684607984, 0.9834636564719617],
+ ]
+
+# timesQR
+ timesQR= [
+ [25.898743583, 40.021015792, 60.117298541, 88.53568, 108.820786959],
+ [132.8612315, 182.812695083, 324.275302292, 475.876391625, 619.344121791],
+ [445.831213584, 804.744762875, 1030.511452042, 1386.774814708, 1891.55275975]]
+
+ # timesRand
+  timesRand = [
+    [39.766620791, 56.467346959, 90.883510083, 129.311407667, 166.711995542],
+ [159.829368208, 235.039929041, 427.461773625, 671.621474541, 858.516246],
+ [403.64460675, 584.121666167, 1267.38801025, 1805.262470084, 2326.728435291]
+ ]
+
+α = 3
 r = Index(Int(floor(α * naux)), "CP rank")
-ss =[(Int(floor(v * dim(r)))) for v in samples]
-plot(ss, fitsQRTrue[α], label="SE-QRCS Sampling")
-plot!(ss, fitsRandTrue[α], label ="Leverage Score Sampling")
+ss = samples .* dim(r) #[(Int(floor(v * dim(r)))) for v in samples]
+lw = 4
+plot(ss, fitsRandTrue[α], label ="Leverage Score Sampling"; lw)
+plot!(ss, fitsQRTrue[α], label="SE-QRCS Sampling"; lw)
 name = α == 1 ? L"I_{\mathrm{aux}}" : α == 2 ? L"2 I_{\mathrm{aux}}" : L"3I_{\mathrm{aux}}"
 plot!(title="CPD approximation of "*L"\mathcal{B}" * "\n" * L"R=" * name,
-yrange=[-0.2,1], yticks=-0.2:0.1:1,
+yrange=[0.2,1],
+yticks=-0.2:0.1:1,
+xticks=2 * 10^4: 2*10^4: 8*10^4,
 ylabel="CPD Fit",
 xlabel="Number of Samples",
+legendfontsize=11,
+titlefontsize=16,
+labelfontsize=15,
+tickfontsize=11,
 legend=:bottomright)
 savefig("$(@__DIR__)/../../plots/chemistry/h2o10_chem_rank_$(α).pdf")
 
@@ -131,26 +163,53 @@ seqrcs_time = 81.678826
 r = Index(Int(floor(α * naux)), "CP rank")
 ss =[(Int(floor(v * dim(r)))) for v in samples]
 name = α == 1 ? L"I_{\mathrm{aux}}" : α == 2 ? L"2 I_{\mathrm{aux}}" : L"3I_{\mathrm{aux}}"
-plot(ss, timesRand[α], label="Leverage Score Sampling ALS", marker=:circle)
-plot!(ss, timesQR[α] .+ seqrcs_time, label="SE-QRCS + ALS", marker=:square)
-plot!(ss, ones(length(samples)) .* seqrcs_time, label="Only SE-QRCS")
-plot!(ss, timesQR[α], label="Only ALS")
-plot!(title="Computational Cost to Decompose " * L"\mathcal{B}" * "\n" *L"R =" * name,
-ylabel="Time (s)", xlabel="Number of Samples")
+plot(ss, timesRand[α], label="Leverage Score Sampling ALS", marker=:circle; lw)
+plot!(ss, timesQR[α] .+ seqrcs_time, label="SE-QRCS + ALS", marker=:square; lw)
+plot!(ss, ones(length(samples)) .* seqrcs_time, label="Only SE-QRCS"; lw)
+plot!(ss, timesQR[α], label="Only ALS"; lw)
+plot!(
+title="Computational Cost to Decompose " 
+* L"\mathcal{B}" * "\n" *L"R =" * name,
+ylabel="Time (s)", 
+xlabel="Number of Samples",
+# yrange=[0,250],
+legendcolumns=1,
+legendfontsize=10,
+titlefontsize=16,
+labelfontsize=15,
+tickfontsize=11,
+legend=:topleft,
+# xticks=2 * 10^4: 2*10^4: 8*10^4,
+# yscale=:log10
+)
 savefig("$(@__DIR__)/../../plots/chemistry/h2o10_time_rank_$(α).pdf")
 
 ## single thread 
+### 1 thread
+timesRand = 
+ [158.031542833, 225.8174365, 386.108209875, 551.160413916, 716.896370417]
+ timesQR = 
+ [129.632080542, 184.665839583, 330.307110917, 493.185432083, 639.509635542]
+ seqrcs_time = 111.972519
 α = 1
 r = Index(Int(floor(α * naux)), "CP rank")
 ss =[(Int(floor(v * dim(r)))) for v in samples]
 name = α == 1 ? L"I_{\mathrm{aux}}" : α == 2 ? L"2 I_{\mathrm{aux}}" : L"3I_{\mathrm{aux}}"
 seqrcs_time = 114.427680
-plot(ss, timesRand[α], label="Leverage Score Sampling ALS", marker=:circle)
-plot!(ss, timesQR[α] .+ seqrcs_time, label="SE-QRCS + ALS", marker=:square)
-plot!(ss, ones(length(samples)) .* seqrcs_time, label="Only SE-QRCS")
-plot!(ss, timesQR[α], label="Only ALS")
-plot!(title="Computational Cost to Decompose " * L"\mathcal{B}" * "\n" *L"R =" * name,
-ylabel="Time (s)", xlabel="Number of Samples")
+plot(ss, timesRand, label="Leverage Score Sampling ALS", marker=:circle; lw)
+plot!(ss, timesQR .+ seqrcs_time, label="SE-QRCS + ALS", marker=:square; lw)
+plot!(ss, ones(length(samples)) .* seqrcs_time, label="Only SE-QRCS"; lw)
+plot!(ss, timesQR, label="Only ALS"; lw)
+plot!(title="Computational Cost to Decompose " 
+* L"\mathcal{B}" * "\n" *L"R =" * name,
+ylabel="Time (s)", 
+xlabel="Number of Samples",
+legendcolumns=1,
+legendfontsize=10,
+titlefontsize=16,
+labelfontsize=15,
+tickfontsize=11,
+legend=:topleft,)
 savefig("$(@__DIR__)/../../plots/chemistry/h2o10_time_rank_$(α)_1thread.pdf")
 
 timesRand
