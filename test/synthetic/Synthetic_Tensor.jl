@@ -6,14 +6,27 @@ elt = Float64
 i, j, k = Index.((90, 90, 90))
 r = Index(100, "CP_rank")
 rng = RandomDevice()
-T = random_itensor(elt, i, j, k)
-cp = ITensorCPD.random_CPD(T, r; rng)
-T = ITensorCPD.reconstruct(cp)
+T = random_itensor(rng, elt, i, j, k)
+cpd = ITensorCPD.random_CPD(T, r; rng)
+bad = 40
+
+# array(cpd[1])[1:bad, :] .*= 100;
+# array(cpd[2])[1:bad, :] .*= 100;
+# array(cpd[3])[1:bad, :] .*= 100;
+# array(cpd[1]) .= array(cpd[1])[randperm(dim(i)), :]
+# array(cpd[2]) .= array(cpd[2])[randperm(dim(j)), :]
+# array(cpd[3]) .= array(cpd[3])[randperm(k), :]
+# r = ITensorCPD.cp_rank(cpd);
+# T = had_contract(cpd[1], cpd[2], r) * had_contract(cpd[3], cpd[], r)
+
+## Old method (unknown rank)
+T = ITensorCPD.reconstruct(cpd)
 T1 =reshape(array(T, (i, j, k)), (dim(i), dim(j)*dim(k)))
-T1[:,1:40].*=100
+T1[:,1:bad].*=100
 T1 = T1[:,randperm(dim(j) * dim(k))]
 T= itensor(T1,i,j,k)
 verbose= true
+
 #samples = [400,500,600,800,1000,1200,1500,2000]
 samples = [200, 400, 600, 800, 1000, 1500, 2000]
 check_piv = ITensorCPD.CPDiffCheck(1e-2, 100)
@@ -22,7 +35,7 @@ SEQRCS_error_mat = Matrix{Float64}(undef, 20, length(samples))
 lev_error_mat = Matrix{Float64}(undef, 20, length(samples))
 rng=RandomDevice()
 cp_T = nothing
-for rk in [100,110,]    
+for rk in [90, 100, 110]    
     r = Index(rk, "CP_rank")
     err_SEQRCS = Vector{Float64}()
     err_leverage = Vector{Float64}()
@@ -38,7 +51,7 @@ for rk in [100,110,]
             success = false
             while !success
                 try
-                    alsQR = ITensorCPD.compute_als(T,cp_T; alg = ITensorCPD.SEQRCSPivProjected(1, s, (1,2,3),(90,)),check = check_piv);
+                    alsQR = ITensorCPD.compute_als(T,cp_T; alg = ITensorCPD.SEQRCSPivProjected(1, s, (1,2,3), (90,)),check = check_piv, injective=false);
                     @show alsQR.mttkrp_alg
                     int_opt_T =
                     ITensorCPD.optimize(cp_T,alsQR;verbose=true);
@@ -73,17 +86,25 @@ for rk in [100,110,]
     opt_T = ITensorCPD.optimize(cp_T, alsNormal; verbose);
     direct_error = check_fit(alsNormal, opt_T.factors, r, opt_T.λ, 1)
 
-    plt2 = plot(samples, direct_error .* ones(length(samples)), marker=:o, label="Normal Equations")
-    plot!(samples, err_SEQRCS, marker=:o, label="SE-QRCS Sampling", yrange=[-0.5,1.01], yticks=-0.5:0.1:1.01)
-    plot!(samples, err_leverage, marker=:o, label="Leverage Score Sampling")
+    ms = 7
+    lw = 4
+    plt2 = plot(samples, direct_error .* ones(length(samples)), marker=:o, label="Normal Equations"; ms, lw)
+    plot!(samples, err_SEQRCS, marker=:o, label="SE-QRCS Sampling"; ms, lw)
+    plot!(samples, err_leverage, marker=:o, label="Leverage Score Sampling"; ms, lw)
     plot!(legendtitle="ALS Method",
-    legendtitlefontsize=8,
+    title="Modified Synthetic Tensor Test:\n Rank $(dim(r))",
+    xlabel="Number of Samples",
+    ylabel = "CPD Fit",
+     yrange=[-0.6,1.01], 
+     yticks=-0.5:0.2:1.01,
+    legendtitlefontsize=10,
+    legendfontsize=10,
+    labelfontsize=15,
+    titlefontsize=14,
+    tickfontsize=10,
     xticks=samples[1]:200:samples[end],
     )
 
-    xlabel!("Number of Samples")
-    ylabel!("CPD Fit")
-    title!("Modified Synthetic Tensor Test:\n Rank $rk")
 
     n = nothing
     if elt == Float64
@@ -117,6 +138,11 @@ for rk in [100,110,]
     plot!(legend=:left, yticks=-0.5:0.1:1.01, yrange=[-0.5, 1.0])
     savefig("$(@__DIR__)/../../plots/synthetic_tensor/distribution_rank_$(rk)_modified_test_$(n).pdf")
 end
+
+c = ITensorCPD.random_CPD(T, 300; rng)
+alsNormal = ITensorCPD.compute_als(T, c; alg=ITensorCPD.InvKRP(), check = check_direct);
+ITensorCPD.decompose(T, 1200; rng,  alg=ITensorCPD.InvKRP(), check=ITensorCPD.FitCheck(1e-3, 20, norm(T)), verbose=true);
+direct_error = check_fit(alsNormal, opt_T.factors, r, opt_T.λ, 1)
 
 rk = 90
 
