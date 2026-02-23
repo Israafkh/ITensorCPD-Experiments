@@ -1,4 +1,4 @@
-include("$(@__DIR__)/../test_env.jl")
+include("$(@__DIR__)/test_env.jl")
 using Plots
 using Random
 using LinearAlgebra: ColumnNorm, diagm, svdvals
@@ -6,17 +6,22 @@ using LinearAlgebra
 
 
 i,j,k = 90,90,90
-samps = 3000
-bad = 10
-r = 100
-cpd_exact = ITensorCPD.random_CPD(zeros(i,j,k), r);
-array(cpd_exact[1])[1:bad, :] .*= 100;
-array(cpd_exact[2])[1:bad, :] .*= 100;
-array(cpd_exact[3])[1:bad, :] .*= 100;
-array(cpd_exact[1]) .= array(cpd_exact[1])[randperm(i), :]
-array(cpd_exact[2]) .= array(cpd_exact[2])[randperm(j), :]
-array(cpd_exact[3]) .= array(cpd_exact[3])[randperm(k), :]
-r = ITensorCPD.cp_rank(cpd_exact);
+samps = 1500
+bad = 20
+r = 60
+# cpd_exact = ITensorCPD.random_CPD(zeros(i,j,k), r);
+# array(cpd_exact[1])[1:bad, :] .*= 100;
+# array(cpd_exact[2])[1:bad, :] .*= 100;
+# array(cpd_exact[3])[1:bad, :] .*= 100;
+# array(cpd_exact[1]) .= array(cpd_exact[1])[randperm(i), :]
+# array(cpd_exact[2]) .= array(cpd_exact[2])[randperm(j), :]
+# array(cpd_exact[3]) .= array(cpd_exact[3])[randperm(k), :]
+# r = ITensorCPD.cp_rank(cpd_exact);
+seed = Xoshiro(123)
+rng = RandomDevice()
+cpd_exact = construct_large_lev_score_cpd((i,j,k), r, bad;rng);
+r = ITensorCPD.cp_rank(cpd_exact)
+
 T = had_contract(cpd_exact[1], cpd_exact[2], r) * had_contract(cpd_exact[3], cpd_exact[], r)
 Q_exact_vect = Vector{Matrix{Float64}}() 
 for i in 1:3
