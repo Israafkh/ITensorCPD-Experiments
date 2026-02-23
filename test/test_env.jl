@@ -129,7 +129,7 @@ function single_solve(alsRef, cpd, fact)
 
     krp = compute_krp(als.mttkrp_alg, als, factors, cpd, cprank, fact)
     mtkrp = matricize_tensor(als.mttkrp_alg, als, factors, cpd, cprank, fact)
-    solution = solve_ls_problem(als.mttkrp_alg, krp, mtkrp, cprank)
+    solution = solve_ls_problem(als.mttkrp_alg, als, krp, mtkrp, cprank)
     
     factors[fact], λ = row_norm(solution, target_ind)
     post_solve(als.mttkrp_alg, als, factors, λ, cpd, cprank, fact)
