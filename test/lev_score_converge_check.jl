@@ -61,27 +61,27 @@ savefig("levs_scores_rank_$(dim(r)).pdf")
 
 cpd = ITensorCPD.random_CPD(T, dim(r); rng=RandomDevice());
 check=ITensorCPD.FitCheck(1e-5, 100, norm(T))
-check_piv = ITensorCPD.CPAngleCheck(1e-8, 5, )
+check_piv = ITensorCPD.CPAngleCheck(1e-8, 20, )
 
 alg = ITensorCPD.direct()
-als = ITensorCPD.compute_als(T, cpd; alg, check=check_piv, normal=false);
+alsNormal = ITensorCPD.compute_als(T, cpd; alg, check=check_piv);
 ## Choose to update only the factors in the KRP
-int_opt_T, als, _ = single_solve(als, cpd, 2);
-int_opt_T, als, _ = single_solve(als, int_opt_T, 3);
+# int_opt_T, als, _ = single_solve(als, cpd, 2);
+# int_opt_T, als, _ = single_solve(als, int_opt_T, 3);
 ## Or run a small number of LS updates
-# int_opt_T = ITensorCPD.optimize(cpd,als;verbose=true);
+int_opt_T = ITensorCPD.optimize(cpd,als;verbose=true);
 als.target .= T
 check_fit(T, int_opt_T)
 
 samps = 1000
 alg = ITensorCPD.SEQRCSPivProjected(1, samps, (1,2,3), 40)
-upals = ITensorCPD.compute_als(T, cpd; alg, check=check_piv, normal=true);
-upals.target .= T
+alsQR = ITensorCPD.compute_als(T, cpd; alg, check=check_piv, normal=true);
+alsQR.target .= T
 ## Choose to update only the factors in the KRP
-upcpd, upals, _ = single_solve(upals, cpd, 2);
-upcpd, upals, _ = single_solve(upals, upcpd, 3);
+# upcpd, upals, _ = single_solve(upals, cpd, 2);
+# upcpd, upals, _ = single_solve(upals, upcpd, 3);
 ## Or run a small number of LS updates
-# upcpd = ITensorCPD.optimize(cpd, upals; verbose=true);
+upcpd = ITensorCPD.optimize(cpd, alsQR; verbose=true);
 
 check_fit(T, upcpd)
 
@@ -103,10 +103,10 @@ println("The angle between the true KRP and the random guess is $(angle_true_ran
 println("The angle between the true KRP and the normal equations is $(angle_true_normal)")
 println("The angle between the true KRP and the QR-random LS is $(angle_true_qr)")
 
-p = plot(sort(levW1; rev=true)[1:1000]; label="Exact CPD")
-plot!(sort(levW2; rev=true)[1:1000]; label="Random Guess")
-plot!(sort(levW3;rev=true)[1:1000]; label="Normal Equations")
-plot!(sort(levW4;rev=true)[1:1000]; label="QR random ")
+p = scatter(sort(levW1;rev=true)[1:105]; label="True Solution")
+scatter!(sort(levW2; rev=true)[1:105]; label="Random Guess")
+scatter!(sort(levW3;rev=true)[1:105]; label="Normal Equations")
+scatter!(sort(levW4;rev=true)[1:105]; label="QR random")
 plot!(title="CP rank = 50, bad = 10", ylabel="Sorted leverage scores", xlabel="Leverage score number")
 
 display(p)
@@ -118,3 +118,57 @@ plot!(levW3[400:500]; marker=:square, label="Normal")
 plot!(levW4[400:500]; marker=:diamond, label="QR Random")
 
 display(p)
+
+
+## Test for angle convergence of leverage scores
+cpd = ITensorCPD.random_CPD(T, dim(r); rng=RandomDevice());
+alg = ITensorCPD.SEQRCSPivProjected(1, samps, (1,2,3), 40)
+alsQR = ITensorCPD.compute_als(T, cpd; alg, check=check_piv, normal=true);
+alg = ITensorCPD.direct()
+alsNormal = ITensorCPD.compute_als(T, cpd; alg, check=check_piv);
+
+function compute_krp_lev_score(cpd, mode)
+    r = ITensorCPD.cp_rank(cpd)
+    W = ITensorCPD.had_contract(cpd.factors[1:end .!= mode], r)
+    return compute_lev_score(reshape(array(W), (prod(dims(W)[1:end-1]), dim(r))))
+end
+reflevs1 = compute_krp_lev_score(cpd_exact, 1)
+reflevs2 = compute_krp_lev_score(cpd_exact, 2)
+reflevs3 = compute_krp_lev_score(cpd_exact, 3)
+
+compute_angle(lev1, lev2) = dot(lev1, lev2) / (norm(lev1) * norm(lev2))
+function lev_score_convergence(cpd, als, ref1, ref2, ref3, iter=5)
+    levs1 = []
+    levs2 = []
+    levs3 = []
+    upcpd, upals,_ = single_solve(als, cpd, 1)
+    push!(levs1, compute_angle(ref1, compute_krp_lev_score(upcpd, 1)))
+    push!(levs2, compute_angle(ref2, compute_krp_lev_score(upcpd, 2)))
+    push!(levs3, compute_angle(ref3, compute_krp_lev_score(upcpd, 3)))
+
+    upcpd, upals,_ = single_solve(upals, upcpd, 2)
+    push!(levs1, compute_angle(ref1, compute_krp_lev_score(upcpd, 1)))
+    push!(levs2, compute_angle(ref2, compute_krp_lev_score(upcpd, 2)))
+    push!(levs3, compute_angle(ref3, compute_krp_lev_score(upcpd, 3)))
+
+    upcpd, upals,_ = single_solve(upals, upcpd, 3)
+    push!(levs1, compute_angle(ref1, compute_krp_lev_score(upcpd, 1)))
+    push!(levs2, compute_angle(ref2, compute_krp_lev_score(upcpd, 2)))
+    push!(levs3, compute_angle(ref3, compute_krp_lev_score(upcpd, 3)))
+    for i in 1:iter-1
+        for j in 1:length(cpd)
+            upcpd, upals,_ = single_solve(upals, upcpd, j)
+            push!(levs1, compute_angle(ref1, compute_krp_lev_score(upcpd, 1)))
+            push!(levs2, compute_angle(ref2, compute_krp_lev_score(upcpd, 2)))
+            push!(levs3, compute_angle(ref3, compute_krp_lev_score(upcpd, 3)))
+        end
+    end
+    return levs1, levs2, levs3
+end
+
+normal1, normal2, normal3 = lev_score_convergence(cpd, alsNormal, reflevs1, reflevs2, reflevs3, 5);
+normal1, normal2, normal3 = lev_score_convergence(cpd, alsQR, reflevs1, reflevs2, reflevs3, 5);
+
+plot(normal1)
+plot!(normal2)
+plot!(normal3)
