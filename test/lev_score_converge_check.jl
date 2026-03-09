@@ -122,8 +122,9 @@ display(p)
 
 ## Test for angle convergence of leverage scores
 cpd = ITensorCPD.random_CPD(T, dim(r); rng=RandomDevice());
-alg = ITensorCPD.SEQRCSPivProjected(1, samps, (1,2,3), 40)
+alg = ITensorCPD.SEQRCSPivProjected(1, 2000, (1,2,3), 40)
 alsQR = ITensorCPD.compute_als(T, cpd; alg, check=check_piv, normal=true);
+alsQR.target .= T
 alg = ITensorCPD.direct()
 alsNormal = ITensorCPD.compute_als(T, cpd; alg, check=check_piv);
 
@@ -163,12 +164,16 @@ function lev_score_convergence(cpd, als, ref1, ref2, ref3, iter=5)
             push!(levs3, compute_angle(ref3, compute_krp_lev_score(upcpd, 3)))
         end
     end
-    return levs1, levs2, levs3
+    return acos.(levs1), acos.(levs2), acos.(levs3)
 end
 
-normal1, normal2, normal3 = lev_score_convergence(cpd, alsNormal, reflevs1, reflevs2, reflevs3, 5);
-normal1, normal2, normal3 = lev_score_convergence(cpd, alsQR, reflevs1, reflevs2, reflevs3, 5);
+normal1, normal2, normal3 = lev_score_convergence(cpd, alsNormal, reflevs1, reflevs2, reflevs3, 20);
+qr1, qr2, qr3 = lev_score_convergence(cpd, alsQR, reflevs1, reflevs2, reflevs3, 20);
 
-plot(normal1)
+plot(normal1, label="Canonical Normal Equations")
+plot!(qr1, label="SE-QRCS Normal Equations")
+plot!(title="Leverage Score Angle Convergence\nMode 1",
+xlabel="Single ALS solve number", ylabel="Angle, rad")
+savefig("LevScoreConvergence.pdf")
 plot!(normal2)
 plot!(normal3)
