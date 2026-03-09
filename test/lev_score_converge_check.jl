@@ -43,6 +43,19 @@ end
 
 T = had_contract(cpd_exact[1], cpd_exact[2], r) * had_contract(cpd_exact[3], cpd_exact[], r)
 
+### This section computes the leverage score of T and compares to KRP
+krp = ITensorCPD.had_contract(cpd_exact[2], cpd_exact[3], r)
+levsKRP = (compute_lev_score(reshape(array(krp), (90 * 90, dim(r)))))
+levsT = compute_lev_score(reshape(array(T, inds(T)[[2,3,1]]), (90 * 90, 90)), dim(r))
+
+plot(levsKRP, label="Known KRP")
+plot!(levsT, label="Target Tensor")
+plot!( title="Leverage Score Values\nR=$(dim(r))",
+ xlabel="Leverage Score Position",
+  ylabel="Value", 
+  legend=:topright)
+savefig("levs_scores_rank_$(dim(r)).pdf")
+####
 # als = ITensorCPD.compute_als(T, cpd_exact; alg=ITensorCPD.InvKRP(), check=ITensorCPD.CPAngleCheck(-1, 10,), trunc_tol=1e-10,normal=false);
 # cpd_exact = ITensorCPD.optimize(cpd_exact, als; verbose=true);
 
