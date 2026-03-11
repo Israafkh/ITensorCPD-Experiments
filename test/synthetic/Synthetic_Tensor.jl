@@ -186,11 +186,11 @@ levn = [-0.3647305183604339, 0.19231770560445416, 0.31380912923128035]
 using ITensors, ITensorCPD, Random
 include("../test_env.jl")
 
-# rng = RandomDevice();
-# i,j,k = 500, 500, 500;
-# tr = ITensorCPD.random_CPD(ITensor(Float64, Index.((i,j,k))), 200; rng);
-# rank = ITensorCPD.cp_rank(tr);
-# A = ITensorCPD.had_contract(tr[1], tr[2], rank) * ITensorCPD.had_contract(tr[3], tr[], rank)
+rng = RandomDevice();
+i,j,k = 500, 500, 500;
+tr = ITensorCPD.random_CPD(ITensor(Float64, Index.((i,j,k))), 200; rng);
+rank = ITensorCPD.cp_rank(tr);
+A = ITensorCPD.had_contract(tr[1], tr[2], rank) * ITensorCPD.had_contract(tr[3], tr[], rank)
 
 r = 1
 cpd = ITensorCPD.random_CPD(A, r; rng);
@@ -229,11 +229,12 @@ for r in ranks
 end
 
 colors = [:blue, :red, :black, :indigo, :brown]
+lw = 3
 p = plot()
 for (i, j, r, c) in zip(times, timesn, ranks, colors)
-    plot!(samples, i./20, label="Rank $(r)", lc=c)
-    plot!(samples, i./20, label=nothing, lc=c, marker=:circle)
-    plot!(samples, j./20, label=nothing, lc=c, marker=:square)
+    plot!(samples, i./20, label="Rank $(r)", lc=c; lw)
+    plot!(samples, i./20, label=nothing, lc=c, marker=:diamond,ms=4; lw)
+    plot!(samples, j./20, label=nothing, lc=c, marker=:square,ms=4; lw)
 end
 plot!(ylabel="Time per ALS iteration (s)", xlabel="Number of Samples", 
 title="CP-ALS Optimization Time",
