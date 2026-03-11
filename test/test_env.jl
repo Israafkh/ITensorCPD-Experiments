@@ -185,9 +185,10 @@ end
 #     nums = [(x * y)[] / (norm(x) * norm(y) )  for (x,y) in zip(cp1, cp2)]
 # end
 
-function compute_lev_score(A::Matrix)
+function compute_lev_score(A::Matrix, rows = nothing)
     cols = size(A)[1]
-    rows = size(A)[2]
+    rows = isnothing(rows) ? size(A)[2] : rows
+    rows = rows > size(A)[2] ? size(A)[2] : rows
     q, _ = qr(A)
     q = Matrix(q)
     q .*= q
