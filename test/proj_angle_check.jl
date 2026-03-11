@@ -7,22 +7,28 @@ using LinearAlgebra
 
 i,j,k = 90,90,90
 samps = 1500
-bad = 20
+bad = 10
 r = 60
-# cpd_exact = ITensorCPD.random_CPD(zeros(i,j,k), r);
-# array(cpd_exact[1])[1:bad, :] .*= 100;
-# array(cpd_exact[2])[1:bad, :] .*= 100;
-# array(cpd_exact[3])[1:bad, :] .*= 100;
-# array(cpd_exact[1]) .= array(cpd_exact[1])[randperm(i), :]
-# array(cpd_exact[2]) .= array(cpd_exact[2])[randperm(j), :]
-# array(cpd_exact[3]) .= array(cpd_exact[3])[randperm(k), :]
-# r = ITensorCPD.cp_rank(cpd_exact);
-seed = Xoshiro(123)
-rng = RandomDevice()
-cpd_exact = construct_large_lev_score_cpd((i,j,k), r, bad;rng);
-r = ITensorCPD.cp_rank(cpd_exact)
+cpd_exact = ITensorCPD.random_CPD(zeros(i,j,k), r);
+array(cpd_exact[1])[1:bad, :] .*= 10;
+array(cpd_exact[2])[1:bad, :] .*= 10;
+array(cpd_exact[3])[1:bad, :] .*= 10;
+array(cpd_exact[1]) .= array(cpd_exact[1])[randperm(i), :]
+array(cpd_exact[2]) .= array(cpd_exact[2])[randperm(j), :]
+array(cpd_exact[3]) .= array(cpd_exact[3])[randperm(k), :]
+r = ITensorCPD.cp_rank(cpd_exact);
+
+
+# seed = Xoshiro(123)
+# rng = RandomDevice()
+# cpd_exact = construct_large_lev_score_cpd((i,j,k), r, bad;rng);
+# r = ITensorCPD.cp_rank(cpd_exact)
 
 T = had_contract(cpd_exact[1], cpd_exact[2], r) * had_contract(cpd_exact[3], cpd_exact[], r)
+
+cpd_exact = ITensorCPD.als_optimize(T, cpd_exact; check=ITensorCPD.FitCheck(1e-10, 100, norm(T)), verbose=true);
+T = had_contract(cpd_exact[1], cpd_exact[2], r) * had_contract(cpd_exact[3], cpd_exact[], r)
+
 Q_exact_vect = Vector{Matrix{Float64}}() 
 for i in 1:3
     inds = filter(x -> x != i, 1:3)
@@ -53,24 +59,36 @@ function proj_angle_compute(cpd, inds,fact)
     return sqrt(1-(minimum(σ))^2)
 end
 
-global upcpd, upals
-cpd = ITensorCPD.random_CPD(T, 100; rng=RandomDevice());
-check=ITensorCPD.FitCheck(1e-3, 100, norm(T))
-check_piv = ITensorCPD.CPAngleCheck(1e-5, 100,cpd_exact,norm(T))
-alg = ITensorCPD.SEQRCSPivProjected(1, samps, (1,2,3), (40,40,40))
-# alg = ITensorCPD.direct()
-als = ITensorCPD.compute_als(T, cpd; alg, check=check_piv, trunc_tol=1e-10,normal=false)
-int_opt_T =ITensorCPD.optimize(cpd,als;verbose=true);
-als.target .= T
-# alslev = ITensorCPD.compute_als(T,cpd_exact;alg = ITensorCPD.LevScoreSampled(samps),check=check_piv)
-# int_opt_T = ITensorCPD.optimize(cpd, alslev; verbose=true)
-upcpd, upals,_ = single_solve(als, cpd, 1)
-δ1 = proj_angle_compute(upcpd, (2,3),1)
+### Initial guesses for CPD 
+#cpd = ITensorCPD.random_CPD(T, 100; rng=RandomDevice());
+cpd = deepcopy(cpd_exact)
+λ = 0.01
+for i in cpd
+    i .+= λ .* random_itensor(inds(i))
+end
 
-upcpd, upals, _ = single_solve(upals, upcpd, 2)
+## Convergence checks
+check=ITensorCPD.FitCheck(1e-8, 100, norm(T))
+check_piv = ITensorCPD.CPAngleCheck(1e-5, 100,)
+
+## ALS algorithms 
+alg = ITensorCPD.SEQRCSPivProjected(1, 7000, (1,2,3), 100)
+# alg = ITensorCPD.LevScoreSampled(4000)
+# alg = ITensorCPD.direct()
+als = ITensorCPD.compute_als(T, cpd; alg, check,normal=false);
+als.target .= T
+
+## Canonical ALS update for reference
+int_opt_T =ITensorCPD.optimize(cpd,als;verbose=true);
+
+## Single update method to check angles between factors
+upcpd, upals,_ = single_solve(als, cpd, 1)
+δ1 = proj_angle_compute(upcpd, (2,3),1);
+upcpd, upals, _ = single_solve(upals, upcpd, 2);;
 δ2 = proj_angle_compute(upcpd, (1,3),2)
-upcpd, upals, _ = single_solve(upals, upcpd, 3)
+upcpd, upals, _ = single_solve(upals, upcpd, 3);
 δ3 = proj_angle_compute(upcpd, (1,2),3)
+
 δ1_vect = [δ1]
 δ2_vect = [δ2]
 δ3_vect = [δ3]
@@ -93,5 +111,3 @@ plot!(δ3_vect, label="δ3")
 xlabel!("Iteration")
 ylabel!("Proj_distance")
 title!("δ values over iterations")
-
-
