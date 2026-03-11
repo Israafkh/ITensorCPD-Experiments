@@ -85,9 +85,9 @@ labelfontsize=14,
 tickfontsize=12,)
 savefig("$(@__DIR__)/../../plots/factor_convergence/svd_vals_diff_factors_qr_mode_1.pdf")
 
-plot(vcat(maximum(sref[1]), maximum.(s1))./ maximum(tspec[1]), label="Mode 1", marker=:circle; lw)
-plot!(vcat(maximum(sref[2]), maximum.(s2))./ maximum(tspec[2]), label="Mode 2", marker=:circle; lw)
-plot!(vcat(maximum(sref[3]), maximum.(s3)) ./ maximum(tspec[3]), label="Mode 2", marker=:circle; lw)
+plot(vcat(maximum(sref[1]), maximum.(s1)), label="Mode 1", marker=:circle; lw)
+plot!(vcat(maximum(sref[2]), maximum.(s2)), label="Mode 2", marker=:circle; lw)
+plot!(vcat(maximum(sref[3]), maximum.(s3)), label="Mode 2", marker=:circle; lw)
 plot!(xlabel="ALS iteration", ylabel="Max Singular Value", 
 title="Absolute largest singular value in Difference from\n found and known CPD factor",
 legendfontsize=9, 
