@@ -236,7 +236,13 @@ for (i, j, r, c) in zip(times, timesn, ranks, colors)
     plot!(samples, j./20, label=nothing, lc=c, marker=:square)
 end
 plot!(ylabel="Time per ALS iteration (s)", xlabel="Number of Samples", 
-title="CP-ALS Optimization Time")
+title="CP-ALS Optimization Time",
+legendtitlefontsize=10,
+legendfontsize=10,
+titlefontsize=15,
+labelfontsize=15,
+tickfontsize=12,
+)
 
 savefig("NormalEqationSamplesTime.pdf")
 
