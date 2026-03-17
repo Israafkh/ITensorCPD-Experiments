@@ -148,9 +148,19 @@ name = α == 1 ? L"I_{\mathrm{aux}}" : α == 2 ? L"2 I_{\mathrm{aux}}" : L"3I_{\
 plot!(title="CPD approximation of "*L"\mathcal{B}" * "\n" * L"R=" * name,
 yrange=[0.2,1],
 yticks=-0.2:0.1:1,
-xticks=2 * 10^4: 2*10^4: 8*10^4,
+## 1
+xticks= α== 3 ?  (0 * 10^4 : 2*10^4: 8*10^4) : (0 * 10^4: 1*10^4: 8*10^4),
+xrange = [0.5* 10^4, 2.5*10^4],
+## 2
+# xticks= α== 3 ?  (0 * 10^4 : 2*10^4: 8*10^4) : (0 * 10^4: 1*10^4: 8*10^4),
+# xrange = [1* 10^4, 5.5*10^4],
+## 3
+# xticks= α== 3 ?  (0 * 10^4 : 2*10^4: 8*10^4) : (0 * 10^4: 1*10^4: 8*10^4),
+# xrange = [1.5* 10^4, 8.5*10^4],
+# yscale=:log10
 ylabel="CPD Fit",
 xlabel="Number of Samples",
+xformatter=:scientific,
 legendfontsize=11,
 titlefontsize=16,
 labelfontsize=15,
@@ -159,7 +169,6 @@ legend=:bottomright)
 savefig("$(@__DIR__)/../../plots/chemistry/h2o10_chem_rank_$(α).pdf")
 
 seqrcs_time = 81.678826
-α = 2
 r = Index(Int(floor(α * naux)), "CP rank")
 ss =[(Int(floor(v * dim(r)))) for v in samples]
 name = α == 1 ? L"I_{\mathrm{aux}}" : α == 2 ? L"2 I_{\mathrm{aux}}" : L"3I_{\mathrm{aux}}"
@@ -174,12 +183,21 @@ ylabel="Time (s)",
 xlabel="Number of Samples",
 # yrange=[0,250],
 legendcolumns=1,
-legendfontsize=10,
+legendfontsize=8,
 titlefontsize=16,
 labelfontsize=15,
 tickfontsize=11,
 legend=:topleft,
-# xticks=2 * 10^4: 2*10^4: 8*10^4,
+xformatter=:scientific,
+## 1
+xticks= α== 3 ?  (0 * 10^4 : 2*10^4: 8*10^4) : (0 * 10^4: 1*10^4: 8*10^4),
+xrange = [0.5* 10^4, 2.5*10^4],
+## 2
+# xticks= α== 3 ?  (0 * 10^4 : 2*10^4: 8*10^4) : (0 * 10^4: 1*10^4: 8*10^4),
+# xrange = [1* 10^4, 5.5*10^4],
+## 3
+# xticks= α== 3 ?  (0 * 10^4 : 2*10^4: 8*10^4) : (0 * 10^4: 1*10^4: 8*10^4),
+# xrange = [1.5* 10^4, 8.5*10^4],
 # yscale=:log10
 )
 savefig("$(@__DIR__)/../../plots/chemistry/h2o10_time_rank_$(α).pdf")
@@ -209,7 +227,11 @@ legendfontsize=10,
 titlefontsize=16,
 labelfontsize=15,
 tickfontsize=11,
-legend=:topleft,)
+legend=:topleft,
+xformatter=:scientific,
+xticks= α== 3 ?  (0 * 10^4 : 2*10^4: 8*10^4) : (0 * 10^4: 1*10^4: 8*10^4),
+xrange = [0.5* 10^4, 2.5*10^4],
+)
 savefig("$(@__DIR__)/../../plots/chemistry/h2o10_time_rank_$(α)_1thread.pdf")
 
 timesRand
