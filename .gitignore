@@ -1,3 +1,4 @@
 .DS_Store
 Manifest.toml
 test/well/datasets/
+test/coil/coil-100/
