@@ -1,7 +1,7 @@
 using PyCall, Conda, Pkg
 using ITensorCPD, ITensors, LinearAlgebra,ITensors.NDTensors
 using LaTeXStrings
-#;source /Users/kpierce/Workspace/HaizhaoYang.github.io/codes/TN-MP-PDE-Solver/env/bin/activate
+# ;source /Users/kpierce/Workspace/HaizhaoYang.github.io/codes/TN-MP-PDE-Solver/env/bin/activate
 Pkg.build("PyCall")
 include("../test_env.jl")
 
@@ -84,91 +84,95 @@ if !use_threads_als
     BLAS.set_num_threads(1)
 end
 alg = ITensorCPD.SEQRCSPivProjected(1, pivdim, (1,2,3), (200,));
-@time als = ITensorCPD.compute_als(target, cpd; alg, check);
+# algK = ITensorCPD.KSEQRCSPivProjected(1, pivdim,);
+# α = 1.0
+# r = Index(Int(floor(α * naux)), "CP rank")
+# rankdim = dim(r)
+# cpd = ITensorCPD.random_CPD(target, r;);
+seqrcs_time = @elapsed als = ITensorCPD.compute_als(target, cpd; alg, check, trunc_tol=0);
+# # @time alsK = ITensorCPD.compute_als(target, cpd; alg=algK, check, 
+#                 prelim_sample_size= 20 * naux, prelim_niter=10, trunc_tol=0,guess_num_levs=Int(floor(4 * naux)));
 rng = RandomDevice()
 fitsRandTrue = Vector{Vector{Float64}}()
 timesQR = Vector{Vector{Float64}}()
 fitsQRTrue = Vector{Vector{Float64}}()
 timesRand = Vector{Vector{Float64}}()
-for lst in [fitsRandTrue,timesQR, fitsQRTrue, timesRand]
+
+for lst in [
+    fitsRandTrue,
+    timesQR,
+     fitsQRTrue, timesRand,
+     ]
+    #  fitsKQRTrue, timesKQR]
     for i in 1:3
     push!(lst, Vector{Float64}())
     end
 end
 samples = [3, 5, 10, 15, 20]
-for α in [2]
+for α in [Int(α)]
     r = Index(Int(floor(α * naux)), "CP rank")
     cpd = ITensorCPD.random_CPD(target, r; rng);
 
     for v in samples
-        @time als = ITensorCPD.update_samples(target, als, (Int(floor(v * dim(r)))); reshuffle=true);
+        als = ITensorCPD.update_samples(target, als, (Int(floor(v * dim(r)))); reshuffle=true);
         push!(timesQR[α], @elapsed scpdRand = ITensorCPD.optimize(cpd, als; verbose=true));
         push!(fitsQRTrue[α], check_fit(target, scpdRand))
     end
-    
     for v in samples
-        @time alsLev = ITensorCPD.compute_als(target, cpd; alg = ITensorCPD.LevScoreSampled((Int(floor(v * dim(r))))), check, normal=true);
+        @time alsLev = ITensorCPD.compute_als(target, cpd; alg = ITensorCPD.LevScoreSampled((Int(floor(v * dim(r))))), check, normal=true, stop_resample=-1);
         push!(timesRand[α], @elapsed scpdRand = ITensorCPD.optimize(cpd, alsLev; verbose=true));
         push!(fitsRandTrue[α], check_fit(target, scpdRand))
     end
 end
 
-fitsQRTrue = [
- [-0.21000985798983862, 0.4244296818634966, 0.7184174262793868, 0.8046191981622658, 0.8480224112768372],
- [0.4751821580031419, 0.734202385333546, 0.8825731264572098, 0.930355195122174, 0.9524485107542174],
- [0.6687602942996482, 0.8388222616205944, 0.9366671493286072, 0.9653527937496582, 0.9772538960015008],
- ]
-
- fitsRandTrue = [
- [-0.27915892463014114, 0.18933457130872666, 0.536636646858154, 0.6783533186673489, 0.7819379713248416],
- [0.21125331314242346, 0.5402435541247881, 0.8276753661060912, 0.9251112136931483, 0.959677935424747],
- [0.426965194751755, 0.7386937555597015, 0.9303693380850508, 0.9709197684607984, 0.9834636564719617],
- ]
-
-# timesQR
- timesQR= [
- [25.898743583, 40.021015792, 60.117298541, 88.53568, 108.820786959],
- [132.8612315, 182.812695083, 324.275302292, 475.876391625, 619.344121791],
- [445.831213584, 804.744762875, 1030.511452042, 1386.774814708, 1891.55275975]]
-
- # timesRand
-  timesRand = [
-    [39.766620791, 56.467346959, 90.883510083, 129.311407667, 166.711995542],
- [159.829368208, 235.039929041, 427.461773625, 671.621474541, 858.516246],
- [403.64460675, 584.121666167, 1267.38801025, 1805.262470084, 2326.728435291]
- ]
-
-α = 3
-r = Index(Int(floor(α * naux)), "CP rank")
-ss = samples .* dim(r) #[(Int(floor(v * dim(r)))) for v in samples]
+## Updated times with parallel + tensor based Sampling
+timesQR =[
+    [35.487285875, 38.203835, 66.110605542, 86.634159458, 110.877763625],
+    [146.994172875, 197.965369625, 342.3873375, 487.638201291, 632.660010916],
+    []
+]
+timesRand = [
+ [40.273820375, 53.505516042, 87.204263708, 120.393692459, 154.238111458],
+ [159.290998583, 222.74811875, 409.948889208, 622.567260708, 801.439265166],
+ [],
+]
+α = Int(α)
 lw = 4
-plot(ss, fitsRandTrue[α], label ="Leverage Score Sampling"; lw)
-plot!(ss, fitsQRTrue[α], label="SE-QRCS Sampling"; lw)
-name = α == 1 ? L"I_{\mathrm{aux}}" : α == 2 ? L"2 I_{\mathrm{aux}}" : L"3I_{\mathrm{aux}}"
-plot!(title="CPD approximation of "*L"\mathcal{B}" * "\n" * L"R=" * name,
-yrange=[0.2,1],
-yticks=-0.2:0.1:1,
-## 1
-xticks= α== 3 ?  (0 * 10^4 : 2*10^4: 8*10^4) : (0 * 10^4: 1*10^4: 8*10^4),
-xrange = [0.5* 10^4, 2.5*10^4],
-## 2
-# xticks= α== 3 ?  (0 * 10^4 : 2*10^4: 8*10^4) : (0 * 10^4: 1*10^4: 8*10^4),
-# xrange = [1* 10^4, 5.5*10^4],
-## 3
-# xticks= α== 3 ?  (0 * 10^4 : 2*10^4: 8*10^4) : (0 * 10^4: 1*10^4: 8*10^4),
-# xrange = [1.5* 10^4, 8.5*10^4],
-# yscale=:log10
-ylabel="CPD Fit",
-xlabel="Number of Samples",
-xformatter=:scientific,
-legendfontsize=11,
-titlefontsize=16,
-labelfontsize=15,
-tickfontsize=11,
-legend=:bottomright)
-savefig("$(@__DIR__)/../../plots/chemistry/h2o10_chem_rank_$(α).pdf")
 
-seqrcs_time = 81.678826
+plot_acc = false
+if plot_acc
+    r = Index(Int(floor(α * naux)), "CP rank")
+    ss = samples .* dim(r) #[(Int(floor(v * dim(r)))) for v in samples]
+    plot(ss, fitsRandTrue[α], label ="Leverage Score Sampling"; lw)
+    plot!(ss, fitsQRTrue[α], label="SE-QRCS Sampling"; lw)
+    # plot!(ss, fitsKQRTrue[α], label="KRP SE-QRCS Sampling"; lw)
+    name = α == 1 ? L"I_{\mathrm{aux}}" : α == 2 ? L"2 I_{\mathrm{aux}}" : L"3I_{\mathrm{aux}}"
+    plot!(title="CPD approximation of "*L"\mathcal{B}" * "\n" * L"R=" * name,
+    yrange=[0.2,1],
+    yticks=-0.2:0.1:1,
+    ## 1
+    xticks= α== 3 ?  (0 * 10^4 : 2*10^4: 8*10^4) : (0 * 10^4: 1*10^4: 8*10^4),
+    xrange = [0.5* 10^4, 2.5*10^4],
+    ## 2
+    # xticks= α== 3 ?  (0 * 10^4 : 2*10^4: 8*10^4) : (0 * 10^4: 1*10^4: 8*10^4),
+    # xrange = [1* 10^4, 5.5*10^4],
+    ## 3
+    # xticks= α== 3 ?  (0 * 10^4 : 2*10^4: 8*10^4) : (0 * 10^4: 1*10^4: 8*10^4),
+    # xrange = [1.5* 10^4, 8.5*10^4],
+    # yscale=:log10
+    ylabel="CPD Fit",
+    xlabel="Number of Samples",
+    xformatter=:scientific,
+    legendfontsize=11,
+    titlefontsize=16,
+    labelfontsize=15,
+    tickfontsize=11,
+    legend=:bottomright)
+    savefig("$(@__DIR__)/../../plots/chemistry/h2o10_chem_rank_$(α).pdf")
+end
+
+# seqrcs_time = 81.678826
+seqrcs_time = 43.986238209
 r = Index(Int(floor(α * naux)), "CP rank")
 ss =[(Int(floor(v * dim(r)))) for v in samples]
 name = α == 1 ? L"I_{\mathrm{aux}}" : α == 2 ? L"2 I_{\mathrm{aux}}" : L"3I_{\mathrm{aux}}"
@@ -191,81 +195,13 @@ legend=:topleft,
 xformatter=:scientific,
 ## 1
 xticks= α== 3 ?  (0 * 10^4 : 2*10^4: 8*10^4) : (0 * 10^4: 1*10^4: 8*10^4),
-xrange = [0.5* 10^4, 2.5*10^4],
+xrange = [0.5* 10^4, 3.2*10^4],
 ## 2
 # xticks= α== 3 ?  (0 * 10^4 : 2*10^4: 8*10^4) : (0 * 10^4: 1*10^4: 8*10^4),
-# xrange = [1* 10^4, 5.5*10^4],
+# xrange = [1* 10^4, 6.3*10^4],
 ## 3
 # xticks= α== 3 ?  (0 * 10^4 : 2*10^4: 8*10^4) : (0 * 10^4: 1*10^4: 8*10^4),
 # xrange = [1.5* 10^4, 8.5*10^4],
 # yscale=:log10
 )
 savefig("$(@__DIR__)/../../plots/chemistry/h2o10_time_rank_$(α).pdf")
-
-## single thread 
-### 1 thread
-timesRand = 
- [158.031542833, 225.8174365, 386.108209875, 551.160413916, 716.896370417]
- timesQR = 
- [129.632080542, 184.665839583, 330.307110917, 493.185432083, 639.509635542]
- seqrcs_time = 111.972519
-α = 1
-r = Index(Int(floor(α * naux)), "CP rank")
-ss =[(Int(floor(v * dim(r)))) for v in samples]
-name = α == 1 ? L"I_{\mathrm{aux}}" : α == 2 ? L"2 I_{\mathrm{aux}}" : L"3I_{\mathrm{aux}}"
-seqrcs_time = 114.427680
-plot(ss, timesRand, label="Leverage Score Sampling ALS", marker=:circle; lw)
-plot!(ss, timesQR .+ seqrcs_time, label="SE-QRCS + ALS", marker=:square; lw)
-plot!(ss, ones(length(samples)) .* seqrcs_time, label="Only SE-QRCS"; lw)
-plot!(ss, timesQR, label="Only ALS"; lw)
-plot!(title="Computational Cost to Decompose " 
-* L"\mathcal{B}" * "\n" *L"R =" * name,
-ylabel="Time (s)", 
-xlabel="Number of Samples",
-legendcolumns=1,
-legendfontsize=10,
-titlefontsize=16,
-labelfontsize=15,
-tickfontsize=11,
-legend=:topleft,
-xformatter=:scientific,
-xticks= α== 3 ?  (0 * 10^4 : 2*10^4: 8*10^4) : (0 * 10^4: 1*10^4: 8*10^4),
-xrange = [0.5* 10^4, 2.5*10^4],
-)
-savefig("$(@__DIR__)/../../plots/chemistry/h2o10_time_rank_$(α)_1thread.pdf")
-
-timesRand
-(timesQR[α] .+ seqrcs_time)
-plot(ss, (timesQR[α] .+ seqrcs_time) ./ timesRand[α], label="Leverage Score Sampling ALS")
-α = 2.0
-r = Index(Int(floor(α * naux)), "CP rank")
-rankdim = dim(r)
-cpd = ITensorCPD.random_CPD(target, r;);
-
-fitsDiffK = Vector{Vector{Float64}}([Vector{Float64}(), Vector{Float64}(), Vector{Float64}()])
-
-v = 30
-for k_sk in [100,200,300,400]
-    alg = ITensorCPD.SEQRCSPivProjected(1, pivdim, (1,2,3), (k_sk,));
-    @time als = ITensorCPD.compute_als(target, cpd; alg, check);
-
-    als = ITensorCPD.update_samples(target, als, (Int(floor(v/α * dim(r)))); reshuffle=true);
-    for α in 1:3
-        r = Index(Int(floor(α * naux)), "CP rank")
-        cpd = ITensorCPD.random_CPD(target, r;);
-        @time scpdRand = ITensorCPD.optimize(cpd, als; verbose=true);
-        push!(fitsDiffK[α], check_fit(target, scpdRand))
-    end
-end
-nsamples = Int(floor(v/α * dim(r))) # 126900, α = 1 v = 30
-xs = [100, 200, 300, 400]
-plot(xs, fitsDiffK[1], label=L"I_{\mathrm{aux}}")
-plot!(xs, fitsDiffK[2], label=L"2I_{\mathrm{aux}}")
-plot!(xs, fitsDiffK[3], label=L"3I_{\mathrm{aux}}")
-name = α == 1 ? L"I_{\mathrm{aux}}" : α == 2 ? L"2 I_{\mathrm{aux}}" : L"3I_{\mathrm{aux}}"
-plot!(title="Effect of SE-QRCS CountSketch on \nCPD approximation of " * L"\mathcal{B}",
-yrange=[0.85,1.01],
-ylabel="CPD Fit",
-xlabel="Count Sketch Non-Zeros per Column",
-legend=:bottomright)
-savefig("$(@__DIR__)/../plots/chemistry/convergence_with_sketch_samples_$(nsamples).pdf")
