@@ -9,7 +9,7 @@ ncoil = sqrt(sum(hadamard_product(coil,coil)))
 rng = RandomDevice()
 # Computes the CP-ALS using an efficient version of the normal equations.
 # Stops when change in fit falls below 1e-3 
-algNormal = ITensorCPD.direct()
+algNormal = ITensorCPD.KRPFreeNormal()
 check_exact = ITensorCPD.FitCheck(1e-5, 100, ncoil)
 ## Create a random initial guess with rank 20
 init_guess = ITensorCPD.random_CPD(coil, 20; rng);

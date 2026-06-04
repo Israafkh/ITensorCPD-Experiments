@@ -82,7 +82,7 @@ for rk in [90, 100, 110]
     err_SEQRCS = median.(eachcol(SEQRCS_error_mat))
     err_leverage = median.(eachcol(lev_error_mat))
 
-    alsNormal = ITensorCPD.compute_als(T, cp_T; alg=ITensorCPD.direct(), check = check_direct);
+    alsNormal = ITensorCPD.compute_als(T, cp_T; alg=ITensorCPD.KRPFreeNormal(), check = check_direct);
     opt_T = ITensorCPD.optimize(cp_T, alsNormal; verbose);
     direct_error = check_fit(alsNormal, opt_T.factors, r, opt_T.λ, 1)
 
