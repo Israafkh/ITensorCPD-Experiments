@@ -35,6 +35,10 @@ SEQRCS_error_mat = Matrix{Float64}(undef, 20, length(samples))
 lev_error_mat = Matrix{Float64}(undef, 20, length(samples))
 rng=RandomDevice()
 cp_T = nothing
+rk = dim(r)
+normal=false
+variance_truncation=false
+times = [Vector{Float64}(),Vector{Float64}(),Vector{Float64}(),Vector{Float64}(),Vector{Float64}(),Vector{Float64}()]
 for rk in [90, 100, 110]    
     r = Index(rk, "CP_rank")
     err_SEQRCS = Vector{Float64}()
@@ -44,46 +48,37 @@ for rk in [90, 100, 110]
     SEQRCS_error_mat = Matrix{Float64}(undef, 20, length(samples))
     lev_error_mat = Matrix{Float64}(undef, 20, length(samples))
     SEQRCS_error_vect = Vector{Float64}(undef, 0)
+    alsQR = ITensorCPD.compute_als(T,cp_T; alg = ITensorCPD.SEQRCSPivProjected(1, 1, (1,2,3), (10,)),check = check_piv, injective=false);
     for (s, i) in zip(samples[1:end], 1:length(samples))
         SEQRCS_error_vect = Vector{Float64}()
         @show s
+        ts = []
         for q = 1:(20 - length(SEQRCS_error_vect))
-            success = false
-            while !success
-                try
-                    alsQR = ITensorCPD.compute_als(T,cp_T; alg = ITensorCPD.SEQRCSPivProjected(1, s, (1,2,3), (90,)),check = check_piv, injective=false);
-                    @show alsQR.mttkrp_alg
-                    int_opt_T =
-                    ITensorCPD.optimize(cp_T,alsQR;verbose=true);
-                    push!(SEQRCS_error_vect,check_fit(T, int_opt_T))
-                    success = true
-                catch
-                end
-            end
+                alsQR = ITensorCPD.update_samples(T, alsQR, s; reshuffle=true)
+                push!(ts, @elapsed int_opt_T = ITensorCPD.optimize(cp_T,alsQR;verbose=false));
+                push!(SEQRCS_error_vect,check_fit(T, int_opt_T))
+                success = true
         end
+        push!(times[1], median(ts))
         SEQRCS_error_mat[:,i] .= SEQRCS_error_vect
         
         lev_error_vect = Vector{Float64}()
+        ts = []
         for q=1:20
-            success = false
-            while !success
-                try
-                    alslev = ITensorCPD.compute_als(T,cp_T;alg = ITensorCPD.LevScoreSampled(s),check = check_piv)
-                    int_opt_T = ITensorCPD.optimize(cp_T, alslev; verbose=false)
-                    push!(lev_error_vect,check_fit(T, int_opt_T))
-                    success = true
-                catch
-                end
-            end
+            alslev = ITensorCPD.compute_als(T,cp_T;alg = ITensorCPD.LevScoreSampled(s),check = check_piv, 
+            normal=normal, 
+            variance_truncation=variance_truncation)
+            push!(ts, @elapsed int_opt_T = ITensorCPD.optimize(cp_T, alslev; verbose=false));
+            push!(lev_error_vect,check_fit(T, int_opt_T))
+            success = true
         end
-        lev_error_mat[:,i] .= lev_error_vect
-    end
-    
+        push!(times[2], median(ts))
+        lev_error_mat[:,i] .= lev_error_vect    
     err_SEQRCS = median.(eachcol(SEQRCS_error_mat))
     err_leverage = median.(eachcol(lev_error_mat))
 
     alsNormal = ITensorCPD.compute_als(T, cp_T; alg=ITensorCPD.KRPFreeNormal(), check = check_direct);
-    opt_T = ITensorCPD.optimize(cp_T, alsNormal; verbose);
+    timeNormal = @elapsed opt_T = ITensorCPD.optimize(cp_T, alsNormal; verbose);
     direct_error = check_fit(alsNormal, opt_T.factors, r, opt_T.λ, 1)
 
     ms = 7
