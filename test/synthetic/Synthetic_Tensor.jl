@@ -15,7 +15,7 @@ bad = 40
 # array(cpd[3])[1:bad, :] .*= 100;
 # array(cpd[1]) .= array(cpd[1])[randperm(dim(i)), :]
 # array(cpd[2]) .= array(cpd[2])[randperm(dim(j)), :]
-# array(cpd[3]) .= array(cpd[3])[randperm(k), :]
+# array(cpd[3]) .= array(cpd[3])[randperm(dim(k)), :]
 # r = ITensorCPD.cp_rank(cpd);
 # T = had_contract(cpd[1], cpd[2], r) * had_contract(cpd[3], cpd[], r)
 
