@@ -14,6 +14,10 @@ file_names = [
 ]
 dfs = map(fn -> CSV.read(path * fn, DataFrame, delim=',', header=true), file_names)
 
+for i in 1:length(dfs)
+    dfs[i].Lat .= round.(dfs[i].Lat, digits=3)
+    dfs[i].Lon .= round.(dfs[i].Lon, digits=3)
+end
 lats = map(x->unique(x.Lat), dfs)
 unlats = unique(vcat(lats...))
 
@@ -36,10 +40,10 @@ for month in 1:5
         i += 1
     end
 end
-latdict = Dict(unlats[1:1100] .=> 1:1100);
-londict = Dict(unlons[1:1100] .=> 1:1100);
+latdict = Dict(unlats .=> 1:length(unlats));
+londict = Dict(unlons .=> 1:length(unlons));
 
-data = zeros(Float32, 183, 24, 1100, 1100);
+data = zeros(Float32, 183, 24, length(unlats), length(unlons));
 latgroup = groupby(dfs[1], ["Date","Time","Lat","Lon"])
 for i in latgroup
     if !haskey(latdict, i.Lat[1]) || !haskey(londict, i.Lon[1])
@@ -49,14 +53,26 @@ for i in latgroup
     data[pos] .= size(i)[1]
 end
 
-
-
 reddit_itensor = itensor(data, Index.(size(data)));
 
-cpd_guess = ITensorCPD.random_CPD(reddit_itensor, 100);
-alsLev = ITensorCPD.compute_als(reddit_itensor, cpd_guess; 
+cpd_guess = ITensorCPD.random_CPD(reddit_itensor, 2);
+alsSEQRCS = ITensorCPD.compute_als(reddit_itensor, cpd_guess; 
 alg = ITensorCPD.SEQRCSPivProjected(1,1000, (1,2,3,4), (1,1,1,1)),
-check=ITensorCPD.FitCheck(1, 100, 1),
+check=ITensorCPD.CPDiffCheck(1e-3, 100),
+injective=true,
 );
+alsSEQRCS = ITensorCPD.update_samples(reddit_itensor, alsSEQRCS, 2000; reshuffle=true);
+opt = ITensorCPD.optimize(cpd_guess, alsSEQRCS; verbose=true);
 
+cprank = ITensorCPD.cp_rank(opt)
+appx = ITensorCPD.had_contract([opt[1], opt[2], opt[3]], cprank) * ITensorCPD.had_contract(opt[4], opt[], cprank);
+1 - norm(data - array(appx)) / norm(data)
+
+alsLev = ITensorCPD.compute_als(reddit_itensor, cpd_guess; 
+alg = ITensorCPD.LevScoreSampled(10),
+#alg = ITensorCPD.SEQRCSPivProjected(1,1000, (1,2,3,4), (1,1,1,1)),
+check=ITensorCPD.FitCheck(1, 100, 1),
+injective=true,
+normal=true
+);
 opt = ITensorCPD.optimize(cpd_guess, alsLev; verbose=true);
