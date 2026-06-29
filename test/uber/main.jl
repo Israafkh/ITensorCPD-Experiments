@@ -11,7 +11,6 @@ file_names = [
     "uber-raw-data-jun14.csv"
     "uber-raw-data-jul14.csv"
     "uber-raw-data-aug14.csv"
-    "uber-raw-data-sep14.csv"
 ]
 dfs = map(fn -> CSV.read(path * fn, DataFrame, delim=',', header=true), file_names)
 
@@ -27,56 +26,36 @@ for i in 1:length(dfs)
 end
 
 dateform = DateFormat("m/d/y")
-ds = [30, 31, 30, 31, 31, 30]
+ds = [30, 31, 30, 31, 31]
 
-# data = zeros(Int, (sum(ds), 24, length(unlats), length(unlons)))
-### This is organized as day [0,183], time, lat, lon 
-### day gets decomposed by finding which month it's in and selecting the right list, then selecting 
-### the day from that list from [1, ds[month]]
-function get_reddit_data(x... ;data=dfs)
-    day = x[1]
-    month = 0
-    for i in 1:6
-        if day ≤ ds[i]
-            month = i
-            break
-        else
-            day = day - ds[i]
-        end
+daydict = Dict()
+i = 1
+for month in 1:5
+    for day in 1:ds[month]
+        daydict["$(month+3)/$(day)/2014"] = i
+        i += 1
     end
-    
-    daymonthgroup = groupby(dfs[month], "Date")[day]
-    try
-        daymonthtime = DataFrame(groupby(daymonthgroup, "Time")[x[2]])
-    catch   
-        # println("Missing time on this date")
-        return 0
+end
+latdict = Dict(unlats[1:1100] .=> 1:1100);
+londict = Dict(unlons[1:1100] .=> 1:1100);
+
+data = zeros(Float32, 183, 24, 1100, 1100);
+latgroup = groupby(dfs[1], ["Date","Time","Lat","Lon"])
+for i in latgroup
+    if !haskey(latdict, i.Lat[1]) || !haskey(londict, i.Lon[1])
+        continue
     end
-    tmp = daymonthgroup[(daymonthgroup.Lat .== unlats[x[3]]),:]
-    return size(tmp[(tmp.Lon .== unlons[x[4]]), :])[1]
-    # for mon in 1:length(dfs)
-    #     for (dategroup, i) in zip(groupby(dfs[mon], "Date"), 1:ds[mon])
-    #         for (timegroup, j) in zip(groupby(dategroup, "Time"), 1:24)
-                
-    #         end
-    #     end
-    # end
+    pos = vcat((daydict[i.Date[1]], hour(i.Time[1]) + 1, latdict[i.Lat[1]], londict[i.Lon[1]])...)
+    data[pos] .= size(i)[1]
 end
 
-rngs = [
-    1:183,
-    1:24,
-    1:1000,
-    1:1000,
-]
-fa = FunctionArray(get_reddit_data, rngs);
-tn = LazyFunctionArray
 
-reddit_itensor = itensor(fa, Index.(size(fa)))
+
+reddit_itensor = itensor(data, Index.(size(data)));
 
 cpd_guess = ITensorCPD.random_CPD(reddit_itensor, 100);
 alsLev = ITensorCPD.compute_als(reddit_itensor, cpd_guess; 
-alg = ITensorCPD.LevScoreSampled(1000),
+alg = ITensorCPD.SEQRCSPivProjected(1,1000, (1,2,3,4), (1,1,1,1)),
 check=ITensorCPD.FitCheck(1, 100, 1),
 );
 
