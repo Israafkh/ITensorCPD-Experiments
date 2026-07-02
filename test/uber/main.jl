@@ -1,8 +1,8 @@
-using Pkg
+include("../test_env.jl")
+
 using CSV, DataFrames
 using Dates
 using LazyFunctionArray
-include("../test_env.jl")
 path = "$(@__DIR__)/../../data/uber-pickups-in-new-york-city/"
 #file_names = readdir(path)
 file_names = [
@@ -44,14 +44,19 @@ latdict = Dict(unlats .=> 1:length(unlats));
 londict = Dict(unlons .=> 1:length(unlons));
 
 data = zeros(Float32, 183, 24, length(unlats), length(unlons));
-latgroup = groupby(dfs[1], ["Date","Time","Lat","Lon"])
-for i in latgroup
-    if !haskey(latdict, i.Lat[1]) || !haskey(londict, i.Lon[1])
-        continue
+for month in 1:5
+    latgroup = groupby(dfs[month], ["Date","Time","Lat","Lon"])
+    for i in latgroup
+        if haskey(latdict, i.Lat[1]) && haskey(londict, i.Lon[1])
+            pos = Tuple((daydict[i.Date[1]], hour(i.Time[1]) + 1, latdict[i.Lat[1]], londict[i.Lon[1]]))
+            data[pos...] = size(i)[1]
+        end
     end
-    pos = vcat((daydict[i.Date[1]], hour(i.Time[1]) + 1, latdict[i.Lat[1]], londict[i.Lon[1]])...)
-    data[pos] .= size(i)[1]
 end
+
+prod(size(data)) - sum(iszero.(data))
+sum(data)
+prod(size(data))
 
 reddit_itensor = itensor(data, Index.(size(data)));
 
