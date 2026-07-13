@@ -60,13 +60,17 @@ prod(size(data))
 
 reddit_itensor = itensor(data, Index.(size(data)));
 
-cpd_guess = ITensorCPD.random_CPD(reddit_itensor, 2);
+cpd_guess = ITensorCPD.random_CPD(reddit_itensor, 10);
 alsSEQRCS = ITensorCPD.compute_als(reddit_itensor, cpd_guess; 
-alg = ITensorCPD.SEQRCSPivProjected(1,1000, (1,2,3,4), (1,1,1,1)),
-check=ITensorCPD.CPDiffCheck(1e-3, 100),
+#alg = ITensorCPD.SEQRCSPivProjected(1,1000, (1,2,3,4), (1,1,1,1)),
+# alg = ITensorCPD.LevScoreSampled(1000),
+alg = ITensorCPD.KRPFreeNormal(),
+check=ITensorCPD.FitCheck(1e-3, 100, norm(reddit_itensor)),
 injective=true,
+stop_resample=1,
+variance_truncation=false
 );
-alsSEQRCS = ITensorCPD.update_samples(reddit_itensor, alsSEQRCS, 2000; reshuffle=true);
+# alsSEQRCS = ITensorCPD.update_samples(reddit_itensor, alsSEQRCS, 2000; reshuffle=true);
 opt = ITensorCPD.optimize(cpd_guess, alsSEQRCS; verbose=true);
 
 cprank = ITensorCPD.cp_rank(opt)
